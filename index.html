@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Vibe Browser</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{position:relative;font-family:var(--font,"Segoe UI",system-ui,sans-serif);background:var(--s);color:var(--on);display:flex;flex-direction:column;font-size:14px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+#tabs{display:flex;align-items:center;gap:6px;padding:8px 10px 0;background:var(--sc);zoom:var(--ui,1)}
+#tablist{display:flex;gap:4px;flex:1;min-width:0}
+.tab{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px 0 12px;border-radius:calc(14px*var(--k)) calc(14px*var(--k)) 0 0;flex:0 1 var(--tw,220px);min-width:60px;cursor:pointer;color:var(--on2)}
+.tab.on{background:var(--s);color:var(--on)}
+.tab img{width:16px;height:16px;border-radius:4px}
+.tab span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab button{width:22px;height:22px;border-radius:50%;opacity:.7}
+.tab button:hover,.ib:hover:not(:disabled){background:var(--pc)}
+.ib{width:38px;height:38px;border-radius:calc(19px*var(--k));font-size:19px;display:grid;place-items:center}
+.ib:disabled{opacity:.35;cursor:default}
+#incbadge{display:none;padding:4px 12px;border-radius:12px;background:var(--p);color:var(--onp);font-size:12px;font-weight:600}
+body.inc #incbadge{display:block}
+#bar{display:flex;align-items:center;gap:4px;padding:6px 10px;background:var(--s);position:relative;zoom:var(--ui,1)}
+#omni{flex:1;height:40px;border-radius:calc(20px*var(--k));border:2px solid transparent;background:var(--sh);color:var(--on);padding:0 18px;font:inherit;font-size:15px;margin:0 6px}
+#omni:focus{border-color:var(--p);outline:0}
+#load{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--p)}
+#load.on{animation:ld 1.4s ease-in-out infinite}
+@keyframes ld{0%{left:0;width:0}50%{left:20%;width:60%}100%{left:100%;width:0}}
+#dl{position:relative}
+#dl.busy{color:var(--p);animation:pls 1.2s infinite}
+@keyframes pls{50%{opacity:.4}}
+#views{flex:1;position:relative}
+webview{position:absolute;inset:0;display:none}
+webview.on{display:flex}
+#ntp{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:radial-gradient(circle at 25% 20%,var(--w1),transparent 55%),radial-gradient(circle at 80% 80%,var(--w2),transparent 50%),var(--s)}
+#ntp.on{display:flex}
+#ntp h1{font-size:56px;font-weight:300;margin:0;letter-spacing:-1px}
+#incnote{display:none;margin:-10px 0 0;max-width:480px;text-align:center;color:var(--on2)}
+body.inc #incnote{display:block}
+#ntpq{width:min(560px,80%);height:56px;border-radius:calc(28px*var(--k));border:0;background:var(--sc);color:var(--on);padding:0 26px;font:inherit;font-size:17px}
+#links{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:640px}
+.chip{padding:14px 22px;border-radius:calc(20px*var(--k));background:var(--pc);color:var(--onpc);font-size:15px}
+.chip:nth-child(3n+2){background:var(--tcc);color:var(--ontc);border-radius:calc(28px*var(--k)) calc(12px*var(--k)) calc(28px*var(--k)) calc(12px*var(--k))}
+.chip:nth-child(3n){background:var(--scc);color:var(--onsc)}
+/* всплывающие окна */
+#pscrim,#scrim{position:absolute;inset:0;display:none}
+#pscrim{z-index:25}#scrim{z-index:20;background:rgba(0,0,0,.35)}
+#pscrim.on,#scrim.on{display:block}
+.pop{position:absolute;top:calc(92px*var(--ui,1));right:10px;background:var(--sc);border-radius:calc(24px*var(--k));padding:8px;z-index:26;display:none;box-shadow:0 8px 28px rgba(0,0,0,.3);min-width:250px}
+.pop.on{display:block}
+#menu button{display:flex;gap:14px;align-items:center;width:100%;padding:12px 16px;border-radius:calc(16px*var(--k));text-align:left;font-size:15px}
+#menu button:hover{background:var(--pc)}
+#menu kbd{margin-left:auto;font:inherit;font-size:12px;color:var(--on2)}
+#dlpop{width:380px;max-height:70vh;overflow:auto;padding:14px}
+#dlpop h4{margin:2px 6px 10px;font-weight:500;font-size:16px}
+.dl{display:flex;gap:10px;align-items:center;padding:10px 6px}
+.dl .nm{flex:1;min-width:0}
+.dl b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl small,.muted{color:var(--on2)}
+.pb{height:4px;border-radius:2px;background:var(--sh);margin:6px 0 3px;overflow:hidden}.pb i{display:block;height:100%;background:var(--p)}
+.sm{padding:6px 12px;border-radius:calc(14px*var(--k));background:var(--pc);color:var(--onpc);font-size:12px;white-space:nowrap}
+/* боковые панели */
+.side{position:absolute;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--sc);z-index:21;transform:translateX(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);overflow-y:auto;padding:22px 24px 32px;border-radius:calc(28px*var(--k)) 0 0 calc(28px*var(--k))}
+.side.on{transform:none}
+.side h2{margin:0 0 6px;font-weight:400;font-size:28px}
+.side h3{margin:22px 0 10px;font-size:13px;font-weight:600;color:var(--p)}
+.side .x{position:absolute;top:16px;right:18px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;height:40px;border-radius:calc(20px*var(--k));background:var(--sh)}
+.seg button.sel{background:var(--p);color:var(--onp)}
+.sw{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.sw button{width:38px;height:38px;border-radius:50%;border:3px solid transparent}
+.sw button.sel{border-color:var(--on);border-radius:calc(12px*var(--k))}
+.side label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:12px 0 6px}
+.side input[type=range]{width:100%;accent-color:var(--p)}
+#hue{-webkit-appearance:none;appearance:none;height:12px;border-radius:6px;background:linear-gradient(90deg,#f55,#fa5,#ee5,#5d5,#5de,#55f,#d5d,#f55)}
+#hue::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--p);border:3px solid var(--sc)}
+.side select,.side input[type=text]{width:100%;height:42px;border-radius:calc(14px*var(--k));border:0;background:var(--sh);color:var(--on);padding:0 14px;font:inherit;margin-top:8px}
+.side input[type=checkbox]{width:20px;height:20px;accent-color:var(--p)}
+.btn{padding:10px 18px;border-radius:calc(20px*var(--k));background:var(--pc);color:var(--onpc);margin:4px 8px 4px 0}
+.hrow{display:flex;align-items:center;gap:10px;padding:6px 4px;border-radius:calc(14px*var(--k));cursor:pointer}
+.hrow:hover{background:var(--pc)}
+.hrow .nm{flex:1;min-width:0}
+.hrow b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow small{display:block;color:var(--on2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow .t{width:42px;flex:none}
+.side.wide{width:min(620px,100%)}
+#sq{width:100%;height:44px;border-radius:calc(22px*var(--k));border:0;background:var(--sh);color:var(--on);padding:0 18px;font:inherit;margin-top:12px}
+#scats{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 8px}
+#scats button{padding:7px 14px;border-radius:calc(16px*var(--k));background:var(--sh);font-size:13px}
+#scats button.sel{background:var(--p);color:var(--onp)}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 4px;border-bottom:1px solid var(--sh)}
+.srow.col{flex-direction:column;align-items:stretch}
+.srow .tx{flex:1;min-width:0}
+.srow .tx small{display:block;color:var(--on2);margin-top:3px;font-size:12px}
+.srow .ctl{flex:none;display:flex;gap:6px;align-items:center;max-width:60%}
+.srow.col .ctl{max-width:none;flex-wrap:wrap}
+.srow select{width:210px;margin:0}
+.srow input[type=range]{width:190px}
+.srow .ctl input[type=text]{width:220px;margin:0}
+.srow .seg{min-width:250px}
+.srow .btn{margin:0}
+.srow .info{color:var(--on2);font-size:13px}
+.tgl{width:48px;height:28px;border-radius:14px;background:var(--sh);border:2px solid var(--on2);position:relative;transition:.2s}
+.tgl::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--on2);transition:.2s}
+.tgl.on{background:var(--p);border-color:var(--p)}
+.tgl.on::after{left:23px;background:var(--onp)}
+#ntpclock{text-align:center;color:var(--on2);font-size:15px}
+#ntpclock b{display:block;font-size:84px;font-weight:300;color:var(--on);line-height:1;letter-spacing:-2px}
+#ntp.bg-plain{background:var(--s)}
+#ntp.bg-accent{background:var(--pc)}
+.noicons .tab img{display:none}
+.noanim *{transition:none!important;animation:none!important}
+body.noprog #load{display:none}
+#toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:var(--on);color:var(--s);padding:10px 18px;border-radius:calc(16px*var(--k));z-index:40;opacity:0;pointer-events:none;transition:.2s}
+#toast.on{opacity:1}
+/* ===== Material You v2 ===== */
+body{background:var(--sc)}
+#tabs{background:transparent;padding:10px 12px 4px;gap:8px}
+#tablist{flex:0 1 auto;gap:6px;align-items:center}
+.tab{height:40px;border-radius:calc(20px*var(--k));padding:0 8px 0 10px;background:transparent;color:var(--on2);transition:background .2s,border-radius .25s,color .2s}
+.tab:hover{background:color-mix(in srgb,var(--on) 8%,transparent)}
+.tab.on{background:var(--pc);color:var(--onpc);border-radius:calc(16px*var(--k))}
+.tab img{width:20px;height:20px;border-radius:calc(7px*var(--k))}
+.tab button{width:26px;height:26px;border-radius:calc(13px*var(--k));opacity:.75;font-size:16px}
+.tab button:hover{background:color-mix(in srgb,currentColor 14%,transparent);opacity:1}
+#incbadge{margin-left:auto;border-radius:calc(14px*var(--k));padding:6px 14px}
+.plus{flex:none;margin-left:2px;background:var(--tcc);color:var(--ontc);width:40px;height:40px;border-radius:calc(20px*var(--k));font-size:22px}
+.plus:hover:not(:disabled){background:var(--tcc);filter:brightness(.94)}
+#bar{background:transparent;padding:4px 12px 10px;gap:6px}
+.ib{color:var(--on);transition:background .2s,border-radius .2s}
+.ib:hover:not(:disabled){background:color-mix(in srgb,var(--on) 10%,transparent)}
+.ib:active:not(:disabled){border-radius:calc(11px*var(--k));background:color-mix(in srgb,var(--on) 16%,transparent)}
+#back,#fwd{background:var(--sh)}
+#back:hover:not(:disabled),#fwd:hover:not(:disabled){background:var(--pc)}
+#reload{background:var(--pc);color:var(--onpc)}
+#reload.busy{border-radius:calc(12px*var(--k));background:var(--p);color:var(--onp)}
+.ow{flex:1;position:relative;display:flex;margin:0 4px}
+.ow #omni{flex:1;margin:0;width:100%;height:46px;padding:0 20px 0 52px;border-radius:calc(23px*var(--k));background:var(--sh)}
+.ow #omni:focus{border-color:var(--p);background:var(--s)}
+#oic{position:absolute;left:6px;top:6px;width:34px;height:34px;display:grid;place-items:center;border-radius:calc(17px*var(--k));background:var(--pc);color:var(--onpc);font-size:15px;filter:grayscale(1);pointer-events:none}
+#load{height:4px;border-radius:2px;bottom:2px}
+#views{margin:0 10px 10px;border-radius:calc(28px*var(--k));overflow:hidden;background:var(--s);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+webview{border-radius:inherit}
+body.nocard #views{margin:0;border-radius:0;box-shadow:none}
+.pop{border-radius:calc(28px*var(--k));padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.28),0 0 0 1px color-mix(in srgb,var(--on) 6%,transparent)}
+#menu{min-width:300px}
+#menu button{border-radius:calc(20px*var(--k));padding:10px 14px;transition:background .15s}
+#menu button:hover{background:color-mix(in srgb,var(--on) 8%,transparent)}
+#menu button>span{width:40px;height:40px;display:grid;place-items:center;border-radius:calc(14px*var(--k));background:var(--pc);color:var(--onpc);font-size:18px;filter:grayscale(.4);transition:border-radius .2s}
+#menu button:nth-child(2)>span{background:var(--tcc);color:var(--ontc)}
+#menu button:nth-child(3)>span{background:var(--scc);color:var(--onsc)}
+#menu button:hover>span{border-radius:calc(20px*var(--k))}
+#menu button:nth-child(2):hover>span{border-radius:calc(8px*var(--k))}
+.dl{background:var(--s);border-radius:calc(20px*var(--k));padding:12px;margin-bottom:6px}
+.pb{height:6px;border-radius:3px}
+.side{border-radius:calc(32px*var(--k)) 0 0 calc(32px*var(--k));box-shadow:-8px 0 32px rgba(0,0,0,.25)}
+.seg{gap:3px}
+.seg button{background:var(--sc);border-radius:calc(8px*var(--k));transition:border-radius .2s,background .2s}
+.seg button:first-child{border-radius:calc(20px*var(--k)) calc(8px*var(--k)) calc(8px*var(--k)) calc(20px*var(--k))}
+.seg button:last-child{border-radius:calc(8px*var(--k)) calc(20px*var(--k)) calc(20px*var(--k)) calc(8px*var(--k))}
+.seg button.sel{background:var(--p);color:var(--onp);border-radius:calc(20px*var(--k))}
+#sbody{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.srow{background:var(--sh);border:0;border-radius:calc(20px*var(--k));padding:14px 18px}
+.side select,.side input[type=text]{background:var(--sc)}
+.srow input[type=text]{background:var(--sc)}
+.tgl{background:var(--sc)}
+.tgl.on{background:var(--p)}
+#scats button{border-radius:calc(10px*var(--k))}
+#scats button.sel{background:var(--pc);color:var(--onpc);border-radius:calc(16px*var(--k))}
+#ntp{overflow:hidden}
+#ntp::before,#ntp::after{content:'';position:absolute;z-index:0;pointer-events:none;animation:morph 14s ease-in-out infinite alternate}
+#ntp::before{width:420px;height:420px;left:-120px;top:-140px;background:var(--pc);opacity:.55;border-radius:63% 37% 54% 46%/55% 48% 52% 45%}
+#ntp::after{width:340px;height:340px;right:-90px;bottom:-110px;background:var(--tcc);opacity:.6;border-radius:38% 62% 63% 37%/41% 44% 56% 59%;animation-delay:-5s}
+#ntp.bg-plain::before,#ntp.bg-plain::after{display:none}
+#ntp>*{position:relative;z-index:1}
+@keyframes morph{50%{border-radius:40% 60% 35% 65%/60% 35% 65% 40%;transform:rotate(25deg) scale(1.08)}100%{border-radius:55% 45% 60% 40%/40% 60% 40% 60%;transform:rotate(-10deg) scale(.95)}}
+#ntpq{height:60px;border-radius:calc(30px*var(--k));background:var(--sh);padding:0 28px;box-shadow:0 2px 12px rgba(0,0,0,.1)}
+#ntpq:focus{outline:2px solid var(--p)}
+#ntpclock b{color:var(--p)}
+.chip{display:flex;align-items:center;gap:10px;padding:8px 22px 8px 8px;font-size:15px;transition:border-radius .2s,filter .2s}
+.chip .av{width:36px;height:36px;display:grid;place-items:center;font-weight:600;background:var(--p);color:var(--onp);border-radius:50%}
+.chip:nth-child(3n+2) .av{border-radius:calc(12px*var(--k))}
+.chip:nth-child(3n) .av{border-radius:calc(18px*var(--k)) calc(6px*var(--k)) calc(18px*var(--k)) calc(6px*var(--k))}
+.chip:hover{filter:brightness(.95)}
+/* ===== Material You v3: иконки, полноэкранные настройки, свои цвета ===== */
+.ib svg,.tab button svg{display:block;pointer-events:none}
+i[data-i]{display:grid;place-items:center;font-style:normal}
+#dl,#dots{background:var(--sh)}
+#dl:hover,#dots:hover{background:var(--pc)}
+#back{border-radius:calc(19px*var(--k)) calc(6px*var(--k)) calc(6px*var(--k)) calc(19px*var(--k));margin-right:-4px}
+#fwd{border-radius:calc(6px*var(--k)) calc(19px*var(--k)) calc(19px*var(--k)) calc(6px*var(--k))}
+#back:active:not(:disabled),#fwd:active:not(:disabled){border-radius:calc(12px*var(--k))}
+#oic{filter:none}
+body.inc #incbadge{display:flex;align-items:center;gap:6px}
+.tab .fav{display:grid;place-items:center;width:20px;height:20px;flex:none}
+.noicons .tab .fav{display:none}
+#menu button>span{filter:none}
+.fi{width:40px;height:40px;display:grid;place-items:center;border-radius:calc(14px*var(--k));background:var(--pc);color:var(--onpc);flex:none}
+.chipx svg{margin-left:8px;vertical-align:middle}
+#logo{display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.15))}
+/* настройки на весь экран */
+#set.side{left:0;width:auto;transform:none;display:none;border-radius:0;box-shadow:none;padding:0;overflow:hidden;z-index:30;background:var(--s)}
+#set.side.on{display:flex;animation:fin .25s ease-out}
+@keyframes fin{from{opacity:0;transform:scale(.985)}}
+#snav{width:310px;flex:none;background:var(--sc);padding:20px 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;border-radius:0 calc(36px*var(--k)) calc(36px*var(--k)) 0}
+.shead{display:flex;align-items:center;gap:10px}
+.shead h2{margin:0;font-size:26px}
+#snav #sq{margin:4px 0 0}
+#scats{display:flex;flex-direction:column;flex-wrap:nowrap;gap:4px;margin:6px 0}
+#scats button{display:flex;align-items:center;gap:14px;width:100%;padding:12px 18px 12px 12px;text-align:left;font-size:15px;background:transparent;border-radius:calc(26px*var(--k));transition:background .2s,border-radius .25s}
+#scats button:hover{background:color-mix(in srgb,var(--on) 8%,transparent)}
+#scats button.sel{background:var(--pc);color:var(--onpc);border-radius:calc(30px*var(--k)) calc(16px*var(--k)) calc(16px*var(--k)) calc(30px*var(--k))}
+.ni{display:grid;place-items:center;width:42px;height:32px;border-radius:calc(16px*var(--k))}
+#scats button.sel .ni{background:var(--p);color:var(--onp)}
+#smain{flex:1;min-width:0;overflow-y:auto;padding:30px 36px 48px}
+#chead,#sbody{max-width:780px;margin-left:auto;margin-right:auto}
+#chead{display:flex;align-items:center;gap:20px;margin-bottom:22px}
+#chead h1{margin:0;font-weight:400;font-size:38px;letter-spacing:-.5px}
+.blob{width:68px;height:68px;display:grid;place-items:center;background:var(--pc);color:var(--onpc);transition:border-radius .4s;flex:none}
+.blob.b0{border-radius:62% 38% 56% 44%/52% 58% 42% 48%}
+.blob.b1{border-radius:40% 60% 44% 56%/58% 42% 58% 42%}
+.blob.b2{border-radius:50%}
+.blob.b3{border-radius:calc(24px*var(--k))}
+@media(max-width:760px){#set.side.on{flex-direction:column}#snav{width:auto;max-height:46%;border-radius:0 0 calc(28px*var(--k)) calc(28px*var(--k))}#smain{padding:20px}}
+/* цвета: готовые, свои и кнопка «+» */
+.sw button{transition:border-radius .2s,transform .15s}
+.sw>button:nth-child(3n+2),.sw .cs:nth-child(3n+2) button:not(.del){border-radius:calc(14px*var(--k))}
+.sw>button:nth-child(3n),.sw .cs:nth-child(3n) button:not(.del){border-radius:calc(19px*var(--k)) calc(8px*var(--k)) calc(19px*var(--k)) calc(8px*var(--k))}
+.sw button.sel{border-color:var(--on);border-radius:calc(12px*var(--k))}
+.cs{position:relative;display:inline-flex}
+.sw .del{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:var(--on);color:var(--s);display:none;place-items:center;padding:0}
+.cs:hover .del{display:grid}
+.swadd{width:38px;height:38px;display:grid;place-items:center;border-radius:calc(19px*var(--k));background:var(--sc);color:var(--on);border:2px dashed var(--on2)}
+.swadd:hover{background:var(--pc);color:var(--onpc)}
+.composer{background:var(--sc);border-radius:calc(24px*var(--k));padding:16px 18px;margin-top:10px;display:flex;flex-direction:column;gap:4px}
+.composer[hidden]{display:none}
+.composer label{margin:8px 0 4px}
+.prev{display:flex;gap:10px;margin-bottom:4px}
+.prev span{width:56px;height:56px;border-radius:50%}
+.prev span:nth-child(2){border-radius:calc(18px*var(--k))}
+.prev span:nth-child(3){border-radius:calc(28px*var(--k)) calc(10px*var(--k)) calc(28px*var(--k)) calc(10px*var(--k))}
+.huebar{-webkit-appearance:none;appearance:none;height:12px;border-radius:6px;background:linear-gradient(90deg,#f55,#fa5,#ee5,#5d5,#5de,#55f,#d5d,#f55)}
+.huebar::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--p);border:3px solid var(--sc)}
+.composer input[type=range]{width:100%}
+.crow{display:flex;gap:8px;margin-top:12px}
+.btn.alt{background:var(--sh);color:var(--on)}
+/* ===== v4: расположение вкладок, разрешения, фон, расширения ===== */
+body{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"tabs" "bar" "views";--pt:calc(98px*var(--ui,1));--pl:18px;--pr:10px}
+#tabs{grid-area:tabs}#bar{grid-area:bar}#views{grid-area:views}
+body.tp-bottom{grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"bar" "views" "tabs"}
+body.tp-left{grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"tabs bar" "tabs views"}
+body.tp-right{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"bar tabs" "views tabs"}
+body.tp-bottom,body.tp-left,body.tp-right{--pt:calc(66px*var(--ui,1))}
+body.tp-left{--pl:calc(var(--tw,220px) + 46px)}
+body.tp-right{--pr:calc(var(--tw,220px) + 38px)}
+body.tp-bottom #tabs{padding:4px 12px 10px}
+body.tp-bottom #views{margin:10px 10px 0}
+body.tp-left #views{margin:0 10px 10px 0}
+body.tp-right #views{margin:0 0 10px 10px}
+body.nocard #views{margin:0!important}
+body.tp-left #tabs,body.tp-right #tabs{flex-direction:column;align-items:stretch;width:calc(var(--tw,220px) + 28px);padding:12px;gap:8px;overflow-y:auto}
+body.tp-left #tablist,body.tp-right #tablist{flex-direction:column;align-items:stretch;gap:6px;flex:none}
+body.tp-left .tab,body.tp-right .tab{flex:none;width:100%}
+body.tp-left .plus,body.tp-right .plus{width:100%;margin:0}
+body.tp-left #tclock,body.tp-right #tclock{margin:auto 0 0}
+body.tp-left #incbadge,body.tp-right #incbadge{margin:0;align-self:flex-start}
+#tclock{display:none;margin-left:auto;padding:7px 14px;border-radius:calc(16px*var(--k));background:var(--sh);color:var(--on);font-size:13px;white-space:nowrap}
+#incbadge{margin-left:8px}
+.pop{top:var(--pt);right:var(--pr)}
+#sitepop{left:var(--pl);right:auto;width:350px}
+#permpop{position:absolute;top:var(--pt);left:var(--pl);z-index:27;display:none;width:390px;background:var(--sc);border-radius:calc(28px*var(--k));padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.3),0 0 0 1px color-mix(in srgb,var(--on) 6%,transparent)}
+#permpop.on{display:block;animation:fin .2s ease-out}
+.pp,.sh2{display:flex;gap:14px;align-items:center}
+.ppi{width:48px;height:48px;display:grid;place-items:center;border-radius:calc(18px*var(--k));background:var(--pc);color:var(--onpc);flex:none}
+.ppb{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+#sitepop h4{margin:16px 6px 8px;font-weight:500}
+.sprow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px}
+.sprow span{display:flex;align-items:center;gap:8px}
+.sprow select{height:36px;border-radius:calc(12px*var(--k));border:0;background:var(--sh);color:var(--on);padding:0 10px;font:inherit}
+#sitepop .btn{margin-top:10px}
+#oic{pointer-events:auto;cursor:pointer;border:0;padding:0}
+#oic:hover{filter:brightness(.95);border-radius:calc(10px*var(--k))}
+#ntpbg{position:absolute!important;inset:0;z-index:0!important;background-size:cover;background-position:center;pointer-events:none}
+#ntp.bg-image::before,#ntp.bg-image::after{display:none}
+#ntp.bg-image h1,#ntp.bg-image #ntpclock,#ntp.bg-image #ntpclock b,#ntp.bg-image #incnote{color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.45)}
+#ntpclock.cl-m b{font-size:56px}
+#ntpclock.cl-s b{font-size:34px}
+.extlist,.fontlist{display:flex;gap:8px;width:100%}
+.extlist{flex-direction:column}
+.fontlist{flex-wrap:wrap}
+.extrow{display:flex;align-items:center;gap:12px;background:var(--sc);border-radius:calc(20px*var(--k));padding:10px 12px}
+.extrow .nm{flex:1;min-width:0}
+.extrow b{display:block;font-weight:500}
+.extrow small{display:block;color:var(--on2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.extrow .btn{margin:0;padding:8px 12px}
+@media(prefers-reduced-motion:reduce){#ntp::before,#ntp::after{animation:none}}
+@media(prefers-reduced-motion:reduce){#load.on{animation:none;width:100%}#dl.busy{animation:none}.side{transition:none}}
+</style></head>
+<body>
+<div id="tabs"><div id="tablist"></div><span id="tclock"></span><span id="incbadge"><i data-i="incognito" data-s="18"></i>Инкогнито</span></div>
+<div id="bar">
+  <button class="ib" id="back" title="Назад"><i data-i="back"></i></button>
+  <button class="ib" id="fwd" title="Вперёд"><i data-i="forward"></i></button>
+  <button class="ib" id="reload" title="Обновить (Ctrl+R)"><i data-i="refresh"></i></button>
+  <div class="ow"><button id="oic" title="Информация о сайте и разрешения"></button><input id="omni" placeholder="Введите адрес или запрос" autocomplete="off" spellcheck="false"></div>
+  <button class="ib" id="dl" title="Загрузки (Ctrl+J)"><i data-i="download"></i></button>
+  <button class="ib" id="dots" title="Меню"><i data-i="more"></i></button>
+  <div id="load"></div>
+</div>
+<div id="views">
+  <div id="ntp"><div id="ntpbg"></div><i id="logo" data-i="logo" data-s="76"></i><div id="ntpclock"></div><h1 id="ntph">Vibe Browser</h1><p id="incnote">Режим инкогнито: история, куки и данные сайтов не сохраняются после закрытия этого окна.</p><input id="ntpq"><div id="links"></div></div>
+</div>
+
+<div id="pscrim"></div>
+<div class="pop" id="menu">
+  <button id="mHist"><span><i data-i="history"></i></span>История<kbd>Ctrl+H</kbd></button>
+  <button id="mSet"><span><i data-i="settings"></i></span>Настройки</button>
+  <button id="mInc"><span><i data-i="incognito"></i></span>Режим инкогнито<kbd>Ctrl+Shift+N</kbd></button>
+</div>
+<div class="pop" id="dlpop"><h4>Загрузки</h4><div id="dllist"></div><button class="btn" id="dlclear">Очистить список</button></div>
+
+<div class="pop" id="sitepop"></div>
+<div id="permpop"></div>
+<div id="scrim"></div>
+<aside class="side" id="hist" aria-label="История">
+  <button class="ib x" data-close title="Закрыть"><i data-i="close"></i></button>
+  <h2>История</h2>
+  <input type="text" id="hq" placeholder="Поиск по истории">
+  <div id="hlist"></div>
+  <button class="btn" id="hclear" style="margin-top:16px">Очистить историю</button>
+</aside>
+<aside class="side wide" id="set" aria-label="Настройки">
+  <nav id="snav">
+    <div class="shead"><button class="ib" data-close title="Назад"><i data-i="back"></i></button><h2>Настройки</h2></div>
+    <input type="text" id="sq" placeholder="Поиск по настройкам" autocomplete="off">
+    <div id="scats"></div>
+  </nav>
+  <main id="smain">
+    <div id="chead"><span class="blob" id="cico"></span><h1 id="ctitle"></h1></div>
+    <div id="sbody"></div>
+  </main>
+</aside>
+<div id="toast"></div>
+<script>
+const { ipcRenderer } = require('electron');
+const $ = s => document.querySelector(s);
+const safe = f => { try { return f(); } catch (e) {} };
+const INC = new URLSearchParams(location.search).get('incognito') === '1';
+const PART = 'inc-' + Date.now(); // без префикса persist: — сессия живёт только в памяти
+if (INC) document.body.classList.add('inc');
+
+const IC = {
+  back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+  forward: 'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
+  refresh: 'M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
+  close: 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+  add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+  download: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
+  more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+  history: 'M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z',
+  settings: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+  incognito: 'M7.2 3.2C8.4 2.7 10 2.5 12 2.5s3.6.2 4.8.7L18 8H6zM2.5 9.5h19v2h-19zM8 13.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5zm0 2a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5zM16 13.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5zm0 2a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5zM11 16.5h2V18h-2z',
+  lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+  warn: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+  search: 'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+  file: 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+  palette: 'M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z',
+  addbox: 'M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z',
+  home: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+  tab: 'M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h10v4h8v10z',
+  web: 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z',
+  shield: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z',
+  desktop: 'M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z',
+  keyboard: 'M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z',
+  storage: 'M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z',
+  info: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+  camera: 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
+  place: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z',
+  bell: 'M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z',
+  delete: 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+  extension: 'M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z',
+  clock: 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'
+};
+// фирменный знак браузера: мягкая «клякса» с ромбом-компасом
+const LOGO = z => `<svg viewBox="0 0 64 64" width="${z}" height="${z}" aria-hidden="true"><path style="fill:var(--p)" d="M32 3c13 0 29 7 29 29S45 61 32 61 3 54 3 32 19 3 32 3z"/><circle cx="32" cy="32" r="17" style="fill:var(--onp)"/><path style="fill:var(--p)" d="M32 17l7.5 15L32 47l-7.5-15z"/></svg>`;
+const ico = (n, z = 22) => n === 'logo' ? LOGO(z) : `<svg viewBox="0 0 24 24" width="${z}" height="${z}" fill="currentColor"${n === 'incognito' ? ' fill-rule="evenodd"' : ''} aria-hidden="true"><path d="${IC[n]}"/></svg>`;
+const hues = [265, 150, 20, 200, 330, 50, 0, 175];
+const DEF = {
+  theme: 'system', hue: 265, vib: 60, k: '1', ui: 100, tw: '220', anim: true, prog: true, ticons: true, font: 'Segoe UI',
+  ntpTitle: 'Vibe Browser', ntpClock: true, ntpSearch: true, showMarks: true, ntpBg: 'grad',
+  engine: 'yandex', custom: '', omniDomain: false, omniSel: true, searchNew: false,
+  startup: 'ntp', home: '', newPage: 'ntp',
+  tabRight: false, popupBg: false, midClose: true, closeLast: false,
+  zoom: 100, darkPages: false, ua: 'chrome', lang: 'ru-RU,ru;q=0.9,en;q=0.8', spell: true, images: true, js: true, noAutoplay: false,
+  blockAds: false, dnt: false, thirdCookies: false, httpsOnly: false, blockPopups: true, pMedia: 'ask', pGeo: 'ask', pNotif: 'ask', clearOnExit: false,
+  askDl: false, dlDir: '', dlPopup: true, dlNotify: true, dlOpen: false,
+  histOn: true, histDays: '0', clearHistExit: false,
+  onTop: false, startMax: false, noHw: false, card: true, customColors: [],
+  tabPos: 'top', ntpFont: 'inherit', bgBlur: 0, bgDim: 25, tFmt: '24', tSec: false, dFmt: 'long', tzone: 'system', dLoc: 'ru', tChip: false, clockSize: 'l'
+};
+let S = Object.assign({}, DEF, JSON.parse(localStorage.settings || '{}'));
+const save = () => localStorage.settings = JSON.stringify(S);
+const ENG = {
+  yandex: ['Яндекс', 'https://yandex.ru/search/?text=%s', 'в Яндексе'],
+  google: ['Google', 'https://www.google.com/search?q=%s', 'в Google'],
+  bing: ['Bing', 'https://www.bing.com/search?q=%s', 'в Bing'],
+  ddg: ['DuckDuckGo', 'https://duckduckgo.com/?q=%s', 'в DuckDuckGo'],
+  custom: ['Свой адрес', '', 'в своём поисковике']
+};
+const mq = matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => INC || (S.theme === 'system' ? mq.matches : S.theme === 'dark');
+let marks = JSON.parse(localStorage.marks || '[["Яндекс","https://yandex.ru"],["Википедия","https://ru.wikipedia.org"],["GitHub","https://github.com"],["YouTube","https://youtube.com"]]');
+let hist = INC ? [] : JSON.parse(localStorage.history || '[]');
+let dls = INC ? [] : JSON.parse(localStorage.downloads || '[]').map(d => d.state === 'progressing' ? { ...d, state: 'interrupted' } : d);
+let tabs = [], active = null;
+
+function theme() {
+  const hue = S.hue, kk = S.vib / 60, dark = isDark();
+  const L = (a, b, c) => `hsl(${(hue + a) % 360} ${Math.min(100, b * kk)}% ${c}%)`, r = document.documentElement.style;
+  const T = dark
+    ? { s: L(0,15,9), sc: L(0,12,15), sh: L(0,12,21), on: L(0,20,92), on2: L(0,10,70), p: L(0,70,78), onp: L(0,60,18), pc: L(0,38,27), onpc: L(0,70,90), tcc: L(60,25,28), ontc: L(60,45,90), scc: L(20,20,27), onsc: L(20,40,90), w1: L(0,45,16), w2: L(60,35,15) }
+    : { s: L(0,40,97), sc: L(0,30,92), sh: L(0,28,88), on: L(0,20,12), on2: L(0,10,35), p: L(0,45,40), onp: '#fff', pc: L(0,75,88), onpc: L(0,60,16), tcc: L(60,55,88), ontc: L(60,50,15), scc: L(20,40,88), onsc: L(20,50,15), w1: L(0,80,90), w2: L(60,70,91) };
+  for (const k in T) r.setProperty('--' + k, T[k]);
+  r.setProperty('--k', S.k); r.colorScheme = dark ? 'dark' : 'light';
+  $('#ntpq').placeholder = 'Искать ' + ENG[S.engine][2] + ' или ввести адрес';
+  $('#ntph').textContent = INC ? 'Режим инкогнито' : (S.ntpTitle || 'Vibe Browser');
+}
+function norm(v) {
+  v = v.trim(); if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (!v.includes(' ') && /^[^\s]+\.[^\s]{2,}$/.test(v)) return 'https://' + v;
+  const tpl = (S.engine === 'custom' && S.custom.includes('%s')) ? S.custom : (ENG[S.engine][1] || ENG.yandex[1]);
+  return tpl.replace('%s', encodeURIComponent(v));
+}
+
+/* ---------- история ---------- */
+const saveHist = () => { if (!INC) localStorage.history = JSON.stringify(hist); };
+function addHist(t, url) {
+  if (INC || !S.histOn || !/^https?:/.test(url)) return;
+  const h = hist[0];
+  if (h && h.url === url && Date.now() - h.time < 3000) return;
+  hist.unshift({ url, title: url, time: Date.now() });
+  if (hist.length > 3000) hist.length = 3000;
+  saveHist();
+}
+function dayLabel(d) {
+  const n = new Date(), a = new Date(n.getFullYear(), n.getMonth(), n.getDate()), b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((a - b) / 864e5);
+  return diff === 0 ? 'Сегодня' : diff === 1 ? 'Вчера' : d.toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function drawHist() {
+  const q = $('#hq').value.trim().toLowerCase(), box = $('#hlist'); box.innerHTML = '';
+  const list = hist.filter(h => !q || h.title.toLowerCase().includes(q) || h.url.toLowerCase().includes(q)).slice(0, 300);
+  if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = INC ? 'В режиме инкогнито история не сохраняется.' : 'История пуста.'; box.append(p); return; }
+  let day = '';
+  list.forEach(h => {
+    const d = new Date(h.time), lab = dayLabel(d);
+    if (lab !== day) { day = lab; const g = document.createElement('h3'); g.textContent = lab; box.append(g); }
+    const r = document.createElement('div'); r.className = 'hrow';
+    r.innerHTML = '<small class="t"></small><div class="nm"><b></b><small></small></div><button class="ib" title="Удалить из истории">×</button>';
+    r.querySelector('.t').textContent = fmtTime(d, false);
+    r.querySelector('b').textContent = h.title || h.url;
+    r.querySelector('.nm small').textContent = h.url;
+    r.querySelector('button').innerHTML = ico('close', 18);
+    r.onclick = () => { closeAll(); go(h.url); };
+    r.querySelector('button').onclick = e => { e.stopPropagation(); hist.splice(hist.indexOf(h), 1); saveHist(); drawHist(); };
+    box.append(r);
+  });
+}
+
+/* ---------- загрузки ---------- */
+const saveDl = () => { if (!INC) localStorage.downloads = JSON.stringify(dls.slice(0, 100)); };
+const mb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' МБ' : Math.max(1, Math.round(n / 1024)) + ' КБ';
+function drawDl() {
+  const box = $('#dllist'); box.innerHTML = '';
+  const busy = dls.filter(d => d.state === 'progressing').length;
+  $('#dl').classList.toggle('busy', busy > 0);
+  if (!dls.length) { const p = document.createElement('p'); p.className = 'muted'; p.style.margin = '6px'; p.textContent = 'Загрузок пока нет.'; box.append(p); }
+  dls.slice(0, 30).forEach(d => {
+    const r = document.createElement('div'); r.className = 'dl';
+    r.innerHTML = '<span class="fi"></span><div class="nm"><b></b><div class="pb" hidden><i></i></div><small></small></div><span class="acts"></span>';
+    r.querySelector('b').textContent = d.name; r.querySelector('.fi').innerHTML = ico('file', 22);
+    const sm = r.querySelector('small'), acts = r.querySelector('.acts');
+    const btn = (t, f) => { const b = document.createElement('button'); b.className = 'sm'; b.textContent = t; b.onclick = f; b.style.marginLeft = '4px'; acts.append(b); };
+    if (d.state === 'progressing') {
+      const pct = d.total > 0 ? Math.round(d.received / d.total * 100) : 0;
+      r.querySelector('.pb').hidden = false; r.querySelector('.pb i').style.width = (d.total > 0 ? pct : 100) + '%';
+      sm.textContent = d.total > 0 ? `${pct}% · ${mb(d.received)} из ${mb(d.total)}` : mb(d.received);
+      btn('Отмена', () => ipcRenderer.send('dl-cancel', d.id));
+    } else if (d.state === 'completed') {
+      sm.textContent = 'Завершено' + (d.total ? ' · ' + mb(d.total) : '');
+      btn('Открыть', () => ipcRenderer.send('dl-open', d.path));
+      btn('В папке', () => ipcRenderer.send('dl-show', d.path));
+    } else sm.textContent = d.state === 'cancelled' ? 'Отменено' : 'Ошибка загрузки';
+    box.append(r);
+  });
+}
+ipcRenderer.on('dl', (_, m) => {
+  let d = dls.find(x => x.id === m.id);
+  if (m.type === 'start') { dls.unshift({ id: m.id, name: m.name, path: '', state: 'progressing', received: 0, total: m.total }); drawDl(); if (S.dlPopup) openPop('dlpop'); return; }
+  if (!d) return;
+  d.name = m.name || d.name;
+  if (m.type === 'progress') { d.received = m.received; d.total = m.total; if (m.state === 'interrupted') d.state = 'interrupted'; }
+  else {
+    d.state = m.state; d.path = m.path; if (m.state === 'completed' && !d.total) d.total = d.received; saveDl();
+    if (m.state === 'completed') {
+      if (S.dlNotify) safe(() => new Notification('Загрузка завершена', { body: d.name }));
+      if (S.dlOpen) ipcRenderer.send('dl-open', d.path);
+    }
+  }
+  drawDl();
+});
+
+/* ---------- вкладки ---------- */
+const UA = {
+  chrome: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+  firefox: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0',
+  android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+  iphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+  electron: ''
+};
+const DARK = 'html{filter:invert(1) hue-rotate(180deg)!important;background:#fff}img,video,picture,canvas,iframe{filter:invert(1) hue-rotate(180deg)!important}';
+let closed = [];
+function applyTab(t) {
+  const wv = t.wv;
+  safe(() => wv.setZoomFactor(S.zoom / 100));
+  if (UA[S.ua]) safe(() => wv.setUserAgent(UA[S.ua]));
+  if (!t.dom) return;
+  if (S.darkPages && !t.dk) safe(() => wv.insertCSS(DARK).then(k => t.dk = k));
+  else if (!S.darkPages && t.dk) { const k = t.dk; t.dk = null; safe(() => wv.removeCSS(k)); }
+}
+function blankTab() { newTab(S.newPage === 'home' && S.home ? norm(S.home) : S.newPage === 'blank' ? 'about:blank' : ''); }
+function reopen() { const u = closed.pop(); if (u) newTab(u); }
+function newTab(url, bg) {
+  const t = { title: 'Новая вкладка', url: '', icon: '', loading: false };
+  const wv = t.wv = document.createElement('webview');
+  wv.setAttribute('allowpopups', '');
+  if (INC) wv.setAttribute('partition', PART);
+  if (UA[S.ua]) wv.setAttribute('useragent', UA[S.ua]);
+  const wp = []; if (!S.js) wp.push('javascript=no'); if (S.noAutoplay) wp.push('autoplayPolicy=document-user-activation-required');
+  if (wp.length) wv.setAttribute('webpreferences', wp.join(','));
+  $('#views').append(wv);
+  wv.addEventListener('page-title-updated', e => { t.title = e.title; drawTabs(); });
+  wv.addEventListener('page-favicon-updated', e => { t.icon = e.favicons[0]; drawTabs(); });
+  const nav = e => { if (e.isMainFrame === false) return; t.url = e.url; addHist(t, e.url); if (t === active) sync(); };
+  wv.addEventListener('did-navigate', nav); wv.addEventListener('did-navigate-in-page', nav);
+  wv.addEventListener('did-start-loading', () => { t.loading = true; if (t === active) sync(); });
+  wv.addEventListener('did-stop-loading', () => {
+    t.loading = false;
+    const h = hist[0], ti = safe(() => wv.getTitle());
+    if (h && h.url === t.url && ti) { h.title = ti; saveHist(); }
+    if (t === active) sync();
+  });
+  wv.addEventListener('dom-ready', () => { t.dom = true; t.dk = null; applyTab(t); });
+  const i = active && S.tabRight ? tabs.indexOf(active) + 1 : tabs.length;
+  tabs.splice(i, 0, t);
+  if (url) { t.url = url; wv.src = url; }
+  if (bg) drawTabs(); else { select(t); if (!url) $('#ntpq').focus(); }
+  return t;
+}
+function select(t) {
+  active = t;
+  tabs.forEach(x => x.wv.classList.toggle('on', x === t && !!x.url));
+  $('#ntp').classList.toggle('on', !t.url);
+  drawTabs(); sync(); drawLinks();
+}
+function closeTab(t) {
+  const i = tabs.indexOf(t); if (i < 0) return;
+  if (/^https?:/.test(t.url)) closed.push(t.url);
+  t.wv.remove(); tabs.splice(i, 1);
+  if (!tabs.length) { if (S.closeLast) window.close(); else newTab(); }
+  else if (t === active) select(tabs[Math.max(0, i - 1)]); else drawTabs();
+}
+function drawTabs() {
+  const box = $('#tablist'); box.innerHTML = '';
+  tabs.forEach(t => {
+    const d = document.createElement('div'); d.className = 'tab' + (t === active ? ' on' : '');
+    if (t.icon) { const im = document.createElement('img'); im.src = t.icon; d.append(im); }
+    else { const f = document.createElement('span'); f.className = 'fav'; f.innerHTML = ico('logo', 18); d.append(f); }
+    const sp = document.createElement('span'); sp.textContent = t.title; d.append(sp);
+    const x = document.createElement('button'); x.innerHTML = ico('close', 16); x.title = 'Закрыть (Ctrl+W)'; d.append(x);
+    d.onclick = () => select(t);
+    d.onauxclick = e => { if (e.button === 1 && S.midClose) closeTab(t); };
+    x.onclick = e => { e.stopPropagation(); closeTab(t); };
+    box.append(d);
+  });
+  // кнопка новой вкладки — сразу справа от последней вкладки
+  const pl = document.createElement('button'); pl.className = 'ib plus'; pl.id = 'plus'; pl.innerHTML = ico('add', 22);
+  pl.title = 'Новая вкладка (Ctrl+T)'; pl.onclick = blankTab; box.append(pl);
+  if (!INC) localStorage.session = JSON.stringify(tabs.filter(t => /^https?:/.test(t.url)).map(t => t.url));
+}
+function sync() {
+  const shown = active.url === 'about:blank' ? '' : active.url;
+  $('#oic').innerHTML = ico(!shown ? 'search' : shown.startsWith('https:') ? 'lock' : 'warn', 18);
+  if (document.activeElement !== $('#omni')) $('#omni').value = S.omniDomain ? (safe(() => new URL(shown).host) || shown) : shown;
+  $('#load').classList.toggle('on', active.loading);
+  // кнопка «обновить» превращается в крестик, пока страница грузится
+  const r = $('#reload'); r.innerHTML = ico(active.loading ? 'close' : 'refresh'); r.classList.toggle('busy', active.loading);
+  r.title = active.loading ? 'Остановить загрузку' : 'Обновить (Ctrl+R)';
+  $('#back').disabled = !safe(() => active.wv.canGoBack());
+  $('#fwd').disabled = !safe(() => active.wv.canGoForward());
+  document.title = (active.title || 'Vibe Browser') + (INC ? ' — Инкогнито' : ' — Vibe Browser');
+}
+function drawLinks() {
+  const b = $('#links'); b.innerHTML = ''; b.style.display = S.showMarks && !INC ? '' : 'none';
+  marks.forEach(m => { const c = document.createElement('button'); c.className = 'chip'; const av = document.createElement('span'); av.className = 'av'; av.textContent = (m[0][0] || '•').toUpperCase(); c.append(av, document.createTextNode(m[0])); c.onclick = () => go(m[1]); b.append(c); });
+}
+function go(v) {
+  const u = norm(v); if (!u) return;
+  active.url = u; active.wv.src = u;
+  select(active); safe(() => active.wv.focus());
+}
+
+/* ---------- окна и меню ---------- */
+function closeAll() {
+  document.querySelectorAll('.side,.pop').forEach(e => e.classList.remove('on'));
+  $('#scrim').classList.remove('on'); $('#pscrim').classList.remove('on');
+}
+function openSide(id) { closeAll(); $('#' + id).classList.add('on'); $('#scrim').classList.add('on'); if (id === 'hist') { $('#hq').value = ''; drawHist(); } }
+function openPop(id) { closeAll(); $('#' + id).classList.add('on'); $('#pscrim').classList.add('on'); }
+$('#scrim').onclick = $('#pscrim').onclick = closeAll;
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
+$('#dots').onclick = () => openPop('menu');
+$('#dl').onclick = () => { drawDl(); openPop('dlpop'); };
+$('#mHist').onclick = () => openSide('hist');
+$('#mSet').onclick = () => openSide('set');
+$('#mInc').onclick = () => { closeAll(); ipcRenderer.send('incognito'); };
+$('#hq').oninput = drawHist;
+$('#hclear').onclick = () => { hist = []; saveHist(); drawHist(); };
+$('#dlclear').onclick = () => { dls = dls.filter(d => d.state === 'progressing'); saveDl(); drawDl(); };
+
+/* ---------- панель инструментов ---------- */
+$('#omni').onkeydown = e => {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim(), u = norm(v); if (!u) return;
+  const isUrl = /^https?:\/\//i.test(v) || (!v.includes(' ') && /^[^\s]+\.[^\s]{2,}$/.test(v));
+  if (S.searchNew && !isUrl) newTab(u); else go(v);
+  e.target.blur();
+};
+$('#omni').onfocus = e => { e.target.value = active.url === 'about:blank' ? '' : active.url; if (S.omniSel) e.target.select(); };
+$('#omni').onblur = sync;
+$('#ntpq').onkeydown = e => { if (e.key === 'Enter') go(e.target.value); };
+$('#back').onclick = () => safe(() => active.wv.goBack());
+$('#fwd').onclick = () => safe(() => active.wv.goForward());
+$('#reload').onclick = () => safe(() => active.loading ? active.wv.stop() : active.wv.reload());
+const combo = e => (e.ctrlKey ? 'c' : '') + (e.shiftKey ? 's' : '') + (e.altKey ? 'a' : '') + ':' + e.key.toLowerCase();
+function zoomBy(d) { S.zoom = d === 0 ? 100 : Math.max(50, Math.min(200, S.zoom + d)); apply(); }
+function key(c) {
+  const nth = d => select(tabs[(tabs.indexOf(active) + d + tabs.length) % tabs.length]);
+  const m = {
+    'c:t': blankTab, 'c:w': () => closeTab(active), 'c:l': () => $('#omni').focus(), 'c:r': () => $('#reload').click(), ':f5': () => $('#reload').click(),
+    'c:h': () => openSide('hist'), 'c:j': () => { drawDl(); openPop('dlpop'); }, 'cs:n': () => ipcRenderer.send('incognito'), 'cs:t': reopen,
+    'c:tab': () => nth(1), 'cs:tab': () => nth(-1), 'c:=': () => zoomBy(10), 'c:+': () => zoomBy(10), 'cs:+': () => zoomBy(10),
+    'c:-': () => zoomBy(-10), 'c:0': () => zoomBy(0), ':f11': () => ipcRenderer.send('fullscreen')
+  };
+  for (let n = 1; n <= 9; n++) m['c:' + n] = () => select(tabs[n === 9 ? tabs.length - 1 : Math.min(n - 1, tabs.length - 1)]);
+  if (!m[c]) return false; m[c](); return true;
+}
+addEventListener('keydown', e => { if (e.key === 'Escape') return closeAll(); if (key(combo(e))) e.preventDefault(); });
+ipcRenderer.on('combo', (_, c) => key(c));
+ipcRenderer.on('open-tab', (_, u, bg) => newTab(u, bg || S.popupBg));
+
+/* ---------- разрешения сайтов (окно запроса внутри браузера) ---------- */
+let sitePerms = INC ? {} : JSON.parse(localStorage.sitePerms || '{}');
+const PN = { media: 'Камера и микрофон', geo: 'Местоположение', notif: 'Уведомления' };
+const PV = { media: 'камере и микрофону', geo: 'местоположению', notif: 'уведомлениям' };
+const PI = { media: 'camera', geo: 'place', notif: 'bell' };
+const hostOnly = o => safe(() => new URL(o).host) || o;
+const originOf = u => safe(() => { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.origin : ''; }) || '';
+function setPerm(o, k, v) {
+  sitePerms[o] = sitePerms[o] || {};
+  if (v) sitePerms[o][k] = v; else delete sitePerms[o][k];
+  if (!Object.keys(sitePerms[o]).length) delete sitePerms[o];
+  if (!INC) localStorage.sitePerms = JSON.stringify(sitePerms);
+  ipcRenderer.send('perm-set', { o, k, v, inc: INC });
+}
+const permQ = [];
+function showPerm() {
+  const box = $('#permpop'), m = permQ[0];
+  if (!m) { box.classList.remove('on'); return; }
+  box.innerHTML = '';
+  const top = document.createElement('div'); top.className = 'pp';
+  const ic = document.createElement('span'); ic.className = 'ppi'; ic.innerHTML = ico(PI[m.key], 26);
+  const tx = document.createElement('div'), b = document.createElement('b'); b.textContent = hostOnly(m.origin);
+  tx.append(b, document.createTextNode(' запрашивает доступ к ' + PV[m.key]));
+  top.append(ic, tx);
+  const btns = document.createElement('div'); btns.className = 'ppb';
+  const mk = (t, cls, allow) => {
+    const x = document.createElement('button'); x.className = 'btn ' + cls; x.textContent = t;
+    x.onclick = () => { setPerm(m.origin, m.key, allow ? 'allow' : 'block'); ipcRenderer.send('perm-reply', m.id, allow); permQ.shift(); showPerm(); safe(syncSet); };
+    return x;
+  };
+  btns.append(mk('Запретить', 'alt', false), mk('Разрешить', '', true));
+  box.append(top, btns); box.classList.add('on');
+}
+ipcRenderer.on('perm-ask', (_, m) => {
+  const d = (sitePerms[m.origin] || {})[m.key];
+  const g = { media: S.pMedia, geo: S.pGeo, notif: S.pNotif }[m.key];
+  if (d) return ipcRenderer.send('perm-reply', m.id, d === 'allow');
+  if (g !== 'ask') return ipcRenderer.send('perm-reply', m.id, g === 'allow');
+  permQ.push(m); showPerm();
+});
+function openSite() {
+  const u = active.url, o = originOf(u), box = $('#sitepop'); box.innerHTML = '';
+  const secure = /^https:/.test(u);
+  const h = document.createElement('div'); h.className = 'sh2';
+  const ic = document.createElement('span'); ic.className = 'ppi'; ic.innerHTML = ico(!o ? 'logo' : secure ? 'lock' : 'warn', 26);
+  const tx = document.createElement('div'), b = document.createElement('b'), sm = document.createElement('small');
+  b.textContent = o ? hostOnly(o) : 'Vibe Browser'; b.style.display = 'block';
+  sm.textContent = !o ? 'Внутренняя страница' : secure ? 'Соединение защищено' : 'Соединение не защищено';
+  tx.append(b, sm); h.append(ic, tx); box.append(h);
+  if (o) {
+    const t = document.createElement('h4'); t.textContent = 'Разрешения для сайта'; box.append(t);
+    Object.keys(PN).forEach(k => {
+      const row = document.createElement('div'); row.className = 'sprow';
+      const l = document.createElement('span'); l.innerHTML = ico(PI[k], 20); l.append(PN[k]);
+      const sl = document.createElement('select');
+      [['', 'Спрашивать'], ['allow', 'Разрешить'], ['block', 'Запретить']].forEach(([v, t2]) => { const op = document.createElement('option'); op.value = v; op.textContent = t2; sl.append(op); });
+      sl.value = (sitePerms[o] || {})[k] || '';
+      sl.onchange = () => { setPerm(o, k, sl.value || null); safe(syncSet); };
+      row.append(l, sl); box.append(row);
+    });
+    const rs = document.createElement('button'); rs.className = 'btn alt'; rs.textContent = 'Сбросить разрешения';
+    rs.onclick = () => { Object.keys(PN).forEach(k => setPerm(o, k, null)); openSite(); safe(syncSet); };
+    box.append(rs);
+  }
+  openPop('sitepop');
+}
+$('#oic').onclick = openSite;
+
+/* ---------- настройки ---------- */
+const CATS = ['Внешний вид', 'Новая вкладка', 'Поиск', 'Запуск', 'Вкладки', 'Страницы', 'Приватность', 'Загрузки', 'История', 'Окно', 'Клавиши', 'Данные', 'О браузере', 'Расширения', 'Дата и время'];
+const ORD = [0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 13, 9, 10, 11, 12];
+const CATICO = ['palette', 'addbox', 'search', 'home', 'tab', 'web', 'shield', 'download', 'history', 'desktop', 'keyboard', 'storage', 'info', 'extension', 'clock'];
+const PERM = [['ask', 'Спрашивать'], ['allow', 'Разрешать'], ['block', 'Блокировать']];
+const clearData = w => ipcRenderer.invoke('clear', w).then(() => toast('Готово'));
+let tt; function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2200); }
+const FONTS = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Candara', 'Century Gothic', 'Comic Sans MS', 'Consolas', 'Corbel', 'Courier New', 'Franklin Gothic Medium',
+  'Gabriola', 'Georgia', 'Impact', 'Ink Free', 'Lucida Console', 'Palatino Linotype', 'Rockwell', 'Segoe Print', 'Segoe Script', 'Sitka Text', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'Bahnschrift'];
+let cfonts = JSON.parse(localStorage.fonts || '[]');
+const regd = new Set();
+const saveFonts = () => { localStorage.fonts = JSON.stringify(cfonts); };
+const fam = f => f === 'system-ui' ? 'system-ui' : '"' + f + '"';
+const fontOpts = () => [['system-ui', 'Системный'], ...FONTS.map(f => [f, f]), ...cfonts.map(f => [f.n, f.n + ' ★'])];
+function regFonts() {
+  cfonts.forEach(f => { if (f.d && !regd.has(f.n)) { regd.add(f.n); new FontFace(f.n, `url(${f.d})`).load().then(ff => document.fonts.add(ff)).catch(() => {}); } });
+}
+let bgData = localStorage.bgimg || '';
+function pickBg() {
+  const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*';
+  f.onchange = async () => {
+    const file = f.files[0]; if (!file) return;
+    try {
+      const bmp = await createImageBitmap(file), sc = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas'); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      bgData = c.toDataURL('image/jpeg', 0.86); localStorage.bgimg = bgData;
+      S.ntpBg = 'image'; apply(); toast('Фон установлен');
+    } catch (e) { toast('Не удалось сохранить изображение'); }
+  };
+  f.click();
+}
+const TZ = [['system', 'Как в системе'], ['UTC', 'UTC'], ['Europe/Kaliningrad', 'Калининград (UTC+2)'], ['Europe/Moscow', 'Москва (UTC+3)'], ['Europe/Samara', 'Самара (UTC+4)'], ['Asia/Yekaterinburg', 'Екатеринбург (UTC+5)'],
+  ['Asia/Novosibirsk', 'Новосибирск (UTC+7)'], ['Asia/Vladivostok', 'Владивосток (UTC+10)'], ['Europe/London', 'Лондон'], ['Europe/Berlin', 'Берлин'], ['Asia/Dubai', 'Дубай'], ['Asia/Shanghai', 'Шанхай'],
+  ['Asia/Tokyo', 'Токио'], ['Australia/Sydney', 'Сидней'], ['America/New_York', 'Нью-Йорк'], ['America/Los_Angeles', 'Лос-Анджелес']];
+const R = [
+  { c: 0, t: 'seg', k: 'theme', l: 'Тема', o: [['system', 'Системная'], ['light', 'Светлая'], ['dark', 'Тёмная']] },
+  { c: 0, t: 'hues', l: 'Цвет интерфейса', d: 'Выберите готовый цвет или нажмите «+», чтобы создать свой' },
+  { c: 0, t: 'rng', k: 'hue', l: 'Оттенок', min: 0, max: 359, u: '°', id: 'hue' },
+  { c: 0, t: 'rng', k: 'vib', l: 'Насыщенность', min: 0, max: 100, u: '%' },
+  { c: 0, t: 'seg', k: 'k', l: 'Форма элементов', o: [['1', 'Круглые'], ['0.5', 'Мягкие'], ['0.1', 'Строгие']] },
+  { c: 0, t: 'rng', k: 'ui', l: 'Масштаб панели', d: 'Размер вкладок и адресной строки', min: 80, max: 140, step: 5, u: '%' },
+  { c: 0, t: 'seg', k: 'tw', l: 'Ширина вкладок', o: [['140', 'Узкие'], ['220', 'Обычные'], ['320', 'Широкие']] },
+  { c: 0, t: 'sel', k: 'font', l: 'Шрифт интерфейса', o: fontOpts, fnt: true },
+  { c: 0, t: 'sel', k: 'ntpFont', l: 'Шрифт стартовой страницы', o: () => [['inherit', 'Как в интерфейсе'], ...fontOpts()], fnt: true },
+  { c: 0, t: 'fonts', l: 'Свои шрифты', d: 'Добавьте установленный в системе шрифт по названию или загрузите файл .ttf, .otf, .woff, .woff2 (до 3 МБ)' },
+  { c: 0, t: 'tgl', k: 'anim', l: 'Анимации', d: 'Плавное появление панелей и переходы' },
+  { c: 0, t: 'tgl', k: 'prog', l: 'Полоса загрузки страницы', d: 'Тонкая полоска под адресной строкой' },
+  { c: 0, t: 'tgl', k: 'ticons', l: 'Значки сайтов на вкладках' },
+  { c: 0, t: 'tgl', k: 'card', l: 'Рамка вокруг страницы', d: 'Страница в скруглённой карточке, как в Material You' },
+
+  { c: 1, t: 'txt', k: 'ntpTitle', l: 'Заголовок', ph: 'Vibe Browser' },
+  { c: 1, t: 'tgl', k: 'ntpClock', l: 'Часы и дата' },
+  { c: 1, t: 'tgl', k: 'ntpSearch', l: 'Поле поиска' },
+  { c: 1, t: 'sel', k: 'ntpBg', l: 'Фон', o: [['grad', 'Градиент'], ['plain', 'Однотонный'], ['accent', 'Цвет акцента'], ['image', 'Своё изображение']] },
+  { c: 1, t: 'btn', l: 'Своё изображение', d: 'Картинка сжимается и хранится внутри браузера', b: 'Выбрать…', fn: pickBg, show: s => s.ntpBg === 'image' },
+  { c: 1, t: 'btn', l: 'Убрать изображение', b: 'Убрать', fn: () => { bgData = ''; localStorage.removeItem('bgimg'); apply(); toast('Фон убран'); }, show: s => s.ntpBg === 'image' },
+  { c: 1, t: 'rng', k: 'bgBlur', l: 'Размытие фона', min: 0, max: 30, u: ' px', show: s => s.ntpBg === 'image' },
+  { c: 1, t: 'rng', k: 'bgDim', l: 'Затемнение фона', min: 0, max: 80, u: '%', show: s => s.ntpBg === 'image' },
+  { c: 1, t: 'tgl', k: 'showMarks', l: 'Быстрые ссылки' },
+  { c: 1, t: 'marks', l: 'Список быстрых ссылок', d: 'Нажмите на ссылку, чтобы удалить её' },
+
+  { c: 2, t: 'sel', k: 'engine', l: 'Поисковая система', o: Object.keys(ENG).map(k => [k, ENG[k][0]]) },
+  { c: 2, t: 'txt', k: 'custom', l: 'Адрес поиска', d: 'Вместо запроса подставьте %s', ph: 'https://example.com/?q=%s', show: s => s.engine === 'custom' },
+  { c: 2, t: 'tgl', k: 'searchNew', l: 'Искать в новой вкладке', d: 'Запросы из адресной строки открываются в новой вкладке' },
+  { c: 2, t: 'tgl', k: 'omniDomain', l: 'Показывать только домен', d: 'Полный адрес виден при щелчке по строке' },
+  { c: 2, t: 'tgl', k: 'omniSel', l: 'Выделять адрес при щелчке' },
+
+  { c: 3, t: 'sel', k: 'startup', l: 'При запуске открывать', o: [['ntp', 'Стартовую страницу'], ['home', 'Домашнюю страницу'], ['restore', 'Вкладки с прошлого раза']] },
+  { c: 3, t: 'txt', k: 'home', l: 'Домашняя страница', ph: 'https://…' },
+  { c: 3, t: 'sel', k: 'newPage', l: 'Новая вкладка', o: [['ntp', 'Стартовая страница'], ['home', 'Домашняя страница'], ['blank', 'Пустая страница']] },
+
+  { c: 4, t: 'seg', k: 'tabPos', l: 'Расположение панели вкладок', o: [['top', 'Сверху'], ['left', 'Слева'], ['bottom', 'Снизу'], ['right', 'Справа']] },
+  { c: 4, t: 'tgl', k: 'tabRight', l: 'Новые вкладки справа от текущей' },
+  { c: 4, t: 'tgl', k: 'popupBg', l: 'Ссылки из страниц открывать в фоне' },
+  { c: 4, t: 'tgl', k: 'midClose', l: 'Закрытие вкладки средней кнопкой мыши' },
+  { c: 4, t: 'tgl', k: 'closeLast', l: 'Закрывать окно с последней вкладкой' },
+  { c: 4, t: 'btn', l: 'Восстановить закрытую вкладку', b: 'Восстановить', fn: () => reopen() },
+
+  { c: 5, t: 'rng', k: 'zoom', l: 'Масштаб страниц', min: 50, max: 200, step: 10, u: '%' },
+  { c: 5, t: 'tgl', k: 'darkPages', l: 'Тёмный вид страниц', d: 'Инвертирует цвета сайтов, картинки не затрагиваются' },
+  { c: 5, t: 'sel', k: 'ua', l: 'Представляться как', d: 'Меняет заголовок User-Agent', o: [['chrome', 'Chrome (Windows)'], ['firefox', 'Firefox (Windows)'], ['android', 'Android (мобильная версия)'], ['iphone', 'iPhone (мобильная версия)'], ['electron', 'Electron (по умолчанию)']] },
+  { c: 5, t: 'sel', k: 'lang', l: 'Язык сайтов', d: 'Заголовок Accept-Language', o: [['ru-RU,ru;q=0.9,en;q=0.8', 'Русский'], ['en-US,en;q=0.9', 'English'], ['de-DE,de;q=0.9,en;q=0.8', 'Deutsch'], ['', 'Как в системе']] },
+  { c: 5, t: 'tgl', k: 'spell', l: 'Проверка орфографии' },
+  { c: 5, t: 'tgl', k: 'images', l: 'Загружать изображения' },
+  { c: 5, t: 'tgl', k: 'js', l: 'JavaScript', d: 'Для новых вкладок. Без него многие сайты не работают' },
+  { c: 5, t: 'tgl', k: 'noAutoplay', l: 'Запретить автовоспроизведение', d: 'Для новых вкладок' },
+
+  { c: 6, t: 'tgl', k: 'blockAds', l: 'Блокировать рекламу и трекеры', d: 'Базовый список рекламных и аналитических доменов' },
+  { c: 6, t: 'tgl', k: 'dnt', l: 'Отправлять «Не отслеживать»', d: 'Заголовки DNT и Global Privacy Control' },
+  { c: 6, t: 'tgl', k: 'thirdCookies', l: 'Блокировать сторонние cookie', d: 'Может нарушить вход через сторонние сервисы' },
+  { c: 6, t: 'tgl', k: 'httpsOnly', l: 'Только HTTPS', d: 'Автоматически переключает http:// на https://' },
+  { c: 6, t: 'tgl', k: 'blockPopups', l: 'Блокировать всплывающие окна' },
+  { c: 6, t: 'sel', k: 'pMedia', l: 'Камера и микрофон', d: 'Для сайтов без сохранённого решения', o: PERM },
+  { c: 6, t: 'sel', k: 'pGeo', l: 'Местоположение', d: 'Для сайтов без сохранённого решения', o: PERM },
+  { c: 6, t: 'sel', k: 'pNotif', l: 'Уведомления сайтов', d: 'Для сайтов без сохранённого решения', o: PERM },
+  { c: 6, t: 'perms', l: 'Разрешения сайтов', d: 'Решения, сохранённые в окне запроса или через значок замка в адресной строке' },
+  { c: 6, t: 'tgl', k: 'clearOnExit', l: 'Очищать cookie и кэш при выходе' },
+  { c: 6, t: 'btn', l: 'Очистить кэш', b: 'Очистить', fn: () => clearData('cache') },
+  { c: 6, t: 'btn', l: 'Удалить cookie и данные сайтов', b: 'Удалить', fn: () => clearData('cookies') },
+
+  { c: 7, t: 'tgl', k: 'askDl', l: 'Спрашивать, куда сохранять файл' },
+  { c: 7, t: 'dir', l: 'Папка загрузок' },
+  { c: 7, t: 'tgl', k: 'dlPopup', l: 'Показывать список при начале загрузки' },
+  { c: 7, t: 'tgl', k: 'dlNotify', l: 'Уведомлять о завершении' },
+  { c: 7, t: 'tgl', k: 'dlOpen', l: 'Открывать файл после загрузки' },
+  { c: 7, t: 'btn', l: 'Очистить список загрузок', b: 'Очистить', fn: () => $('#dlclear').click() },
+
+  { c: 8, t: 'tgl', k: 'histOn', l: 'Сохранять историю' },
+  { c: 8, t: 'sel', k: 'histDays', l: 'Хранить историю', o: [['0', 'Всегда'], ['7', '7 дней'], ['30', '30 дней'], ['90', '3 месяца'], ['365', 'Год']] },
+  { c: 8, t: 'tgl', k: 'clearHistExit', l: 'Очищать историю при выходе' },
+  { c: 8, t: 'btn', l: 'Открыть историю', b: 'Открыть', fn: () => openSide('hist') },
+  { c: 8, t: 'btn', l: 'Очистить историю', b: 'Очистить', fn: () => { hist = []; saveHist(); toast('История очищена'); } },
+
+  { c: 9, t: 'tgl', k: 'onTop', l: 'Поверх всех окон' },
+  { c: 9, t: 'tgl', k: 'startMax', l: 'Запускать развёрнутым на весь экран' },
+  { c: 9, t: 'tgl', k: 'noHw', l: 'Отключить аппаратное ускорение', d: 'Поможет при мерцании или чёрных страницах. Нужен перезапуск' },
+  { c: 9, t: 'btn', l: 'Полноэкранный режим', b: 'F11', fn: () => ipcRenderer.send('fullscreen') },
+  { c: 9, t: 'btn', l: 'Перезапустить браузер', b: 'Перезапуск', fn: () => ipcRenderer.send('relaunch') },
+
+  ...[['Новая вкладка', 'Ctrl+T'], ['Закрыть вкладку', 'Ctrl+W'], ['Восстановить вкладку', 'Ctrl+Shift+T'], ['Следующая / предыдущая вкладка', 'Ctrl+Tab / Ctrl+Shift+Tab'],
+    ['Вкладка по номеру', 'Ctrl+1 … 9'], ['Адресная строка', 'Ctrl+L'], ['Обновить', 'Ctrl+R / F5'], ['История', 'Ctrl+H'], ['Загрузки', 'Ctrl+J'],
+    ['Режим инкогнито', 'Ctrl+Shift+N'], ['Масштаб', 'Ctrl + / Ctrl − / Ctrl 0'], ['Полный экран', 'F11'], ['Закрыть панель', 'Esc']].map(([l, v]) => ({ c: 10, t: 'info', l, v: () => v })),
+
+  { c: 11, t: 'btn', l: 'Экспорт настроек', d: 'Копирует настройки в буфер обмена', b: 'Копировать', fn: () => navigator.clipboard.writeText(JSON.stringify(S)).then(() => toast('Настройки скопированы')) },
+  { c: 11, t: 'btn', l: 'Импорт настроек', d: 'Применяет настройки, скопированные из буфера', b: 'Вставить', fn: async () => { try { S = Object.assign({}, DEF, JSON.parse(await navigator.clipboard.readText())); apply(); toast('Настройки применены'); } catch (e) { toast('В буфере нет настроек'); } } },
+  { c: 11, t: 'btn', l: 'Удалить все данные просмотра', d: 'Кэш, cookie, данные сайтов, история, список загрузок', b: 'Удалить всё', fn: () => { hist = []; saveHist(); dls = dls.filter(d => d.state === 'progressing'); saveDl(); drawDl(); clearData('all'); } },
+  { c: 11, t: 'btn', l: 'Сбросить все настройки', b: 'Сбросить', fn: () => { S = Object.assign({}, DEF, { customColors: S.customColors }); apply(); toast('Настройки сброшены'); } },
+
+  { c: 13, t: 'exts', l: 'Установленные расширения', d: 'Выберите распакованную папку расширения Chrome (где лежит manifest.json). Поддерживается часть API Chrome, окна и кнопки расширений не показываются' },
+  { c: 14, t: 'sel', k: 'tFmt', l: 'Формат времени', o: [['24', '24-часовой'], ['12', '12-часовой'], ['auto', 'Как в системе']] },
+  { c: 14, t: 'tgl', k: 'tSec', l: 'Показывать секунды' },
+  { c: 14, t: 'sel', k: 'dFmt', l: 'Формат даты', o: [['long', 'Среда, 25 ноября'], ['medium', '25 нояб. 2026 г.'], ['short', '25.11.2026'], ['iso', '2026-11-25'], ['none', 'Не показывать']] },
+  { c: 14, t: 'sel', k: 'dLoc', l: 'Язык даты и времени', o: [['ru', 'Русский'], ['en', 'English'], ['de', 'Deutsch'], ['fr', 'Français'], ['es', 'Español']] },
+  { c: 14, t: 'sel', k: 'tzone', l: 'Часовой пояс', o: TZ },
+  { c: 14, t: 'seg', k: 'clockSize', l: 'Размер часов на стартовой', o: [['l', 'Крупные'], ['m', 'Средние'], ['s', 'Мелкие']] },
+  { c: 14, t: 'tgl', k: 'ntpClock', l: 'Часы на стартовой странице' },
+  { c: 14, t: 'tgl', k: 'tChip', l: 'Часы в панели вкладок', d: 'Время и короткая дата рядом с вкладками' },
+  { c: 12, t: 'info', l: 'Vibe Browser', v: () => 'версия 1.0' },
+  { c: 12, t: 'info', l: 'Electron', v: () => process.versions.electron },
+  { c: 12, t: 'info', l: 'Chromium', v: () => process.versions.chrome },
+  { c: 12, t: 'info', l: 'Node.js', v: () => process.versions.node }
+];
+let cat = 0;
+const mkEl = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+function buildRow(r) {
+  const d = r.el = mkEl('div', 'srow' + (r.t === 'marks' || r.t === 'hues' ? ' col' : ''));
+  d.dataset.s = ((r.l || '') + ' ' + (r.d || '') + ' ' + CATS[r.c]).toLowerCase();
+  const tx = mkEl('div', 'tx'); tx.append(mkEl('span', '', r.l)); if (r.d) tx.append(mkEl('small', '', r.d)); d.append(tx);
+  const ctl = mkEl('div', 'ctl'); d.append(ctl);
+  const set = v => { S[r.k] = v; apply(); };
+  const cast = v => typeof DEF[r.k] === 'number' ? +v : v;
+  if (r.t === 'tgl') {
+    const b = mkEl('button', 'tgl'); b.setAttribute('role', 'switch'); b.onclick = () => set(!S[r.k]);
+    r.sync = () => { b.classList.toggle('on', !!S[r.k]); b.setAttribute('aria-checked', !!S[r.k]); }; ctl.append(b);
+  } else if (r.t === 'sel') {
+    const sl = mkEl('select');
+    const fill = () => { sl.innerHTML = ''; (typeof r.o === 'function' ? r.o() : r.o).forEach(([v, l]) => { const o = mkEl('option', '', l); o.value = v; if (r.fnt && v !== 'inherit') o.style.fontFamily = fam(v); sl.append(o); }); };
+    fill(); sl.onchange = () => set(cast(sl.value));
+    r.sync = () => { if (typeof r.o === 'function') fill(); sl.value = String(S[r.k]); }; ctl.append(sl);
+  } else if (r.t === 'seg') {
+    const g = mkEl('div', 'seg'), bs = r.o.map(([v, l]) => { const b = mkEl('button', '', l); b.onclick = () => set(cast(v)); g.append(b); return [v, b]; });
+    r.sync = () => bs.forEach(([v, b]) => b.classList.toggle('sel', v === String(S[r.k]))); ctl.append(g);
+  } else if (r.t === 'rng') {
+    const i = mkEl('input'); i.type = 'range'; i.min = r.min; i.max = r.max; i.step = r.step || 1; if (r.id) i.id = r.id;
+    const v = mkEl('span', 'info'); v.style.minWidth = '46px'; i.oninput = () => set(+i.value);
+    r.sync = () => { i.value = S[r.k]; v.textContent = S[r.k] + (r.u || ''); }; ctl.append(i, v);
+  } else if (r.t === 'txt') {
+    const i = mkEl('input'); i.type = 'text'; i.placeholder = r.ph || ''; i.spellcheck = false; i.oninput = () => set(i.value.trim());
+    r.sync = () => { if (document.activeElement !== i) i.value = S[r.k]; }; ctl.append(i);
+  } else if (r.t === 'btn') {
+    const b = mkEl('button', 'btn', r.b); b.onclick = r.fn; ctl.append(b);
+  } else if (r.t === 'info') {
+    ctl.append(mkEl('span', 'info', r.v()));
+  } else if (r.t === 'dir') {
+    const i = mkEl('input'); i.type = 'text'; i.readOnly = true;
+    const b = mkEl('button', 'btn', 'Выбрать'), x = mkEl('button', 'btn'); x.innerHTML = ico('close', 16); x.title = 'Сбросить';
+    b.onclick = async () => { const p = await ipcRenderer.invoke('pick-dir'); if (p) set(p); };
+    x.onclick = () => set('');
+    r.sync = () => i.value = S.dlDir || 'Папка «Загрузки»'; ctl.append(i, b, x);
+  } else if (r.t === 'hues') {
+    r.k = 'hue'; d.className = 'srow col'; ctl.className = 'ctl sw';
+    const comp = mkEl('div', 'composer'); comp.hidden = true; d.append(comp);
+    let ch = 200, cv = 60;
+    const pv = mkEl('div', 'prev'), pa = mkEl('span'), pb = mkEl('span'), pc2 = mkEl('span'); pv.append(pa, pb, pc2);
+    const hl = mkEl('label'), hv = mkEl('b'), hi = mkEl('input'); hl.append('Оттенок ', hv); hi.type = 'range'; hi.min = 0; hi.max = 359; hi.className = 'huebar';
+    const sl = mkEl('label'), sv = mkEl('b'), si = mkEl('input'); sl.append('Насыщенность ', sv); si.type = 'range'; si.min = 0; si.max = 100;
+    const upd = () => {
+      hv.textContent = ch + '°'; sv.textContent = cv + '%'; hi.value = ch; si.value = cv;
+      pa.style.background = `hsl(${ch} ${cv}% 45%)`; pb.style.background = `hsl(${ch} ${Math.min(100, cv * 1.2)}% 86%)`; pc2.style.background = `hsl(${(ch + 60) % 360} ${cv * 0.9}% 86%)`;
+    };
+    hi.oninput = () => { ch = +hi.value; upd(); }; si.oninput = () => { cv = +si.value; upd(); };
+    const row = mkEl('div', 'crow'), addB = mkEl('button', 'btn', 'Добавить цвет'), cancel = mkEl('button', 'btn alt', 'Отмена');
+    addB.onclick = () => {
+      if (!S.customColors.some(c => c[0] === ch && c[1] === cv)) S.customColors = [...S.customColors, [ch, cv]].slice(-24);
+      S.hue = ch; S.vib = cv; comp.hidden = true; apply(); toast('Цвет добавлен');
+    };
+    cancel.onclick = () => { comp.hidden = true; };
+    row.append(addB, cancel); comp.append(pv, hl, hi, sl, si, row);
+    const plus = mkEl('button', 'swadd'); plus.title = 'Добавить свой цвет'; plus.innerHTML = ico('add', 20);
+    plus.onclick = () => { ch = S.hue; cv = S.vib; upd(); comp.hidden = !comp.hidden; };
+    r.sync = () => {
+      ctl.innerHTML = '';
+      hues.forEach(h => { const b = mkEl('button'); b.style.background = `hsl(${h} 60% 55%)`; b.title = h + '°'; b.classList.toggle('sel', S.hue === h && S.vib === 60); b.onclick = () => { S.hue = h; S.vib = 60; apply(); }; ctl.append(b); });
+      S.customColors.forEach(([h, v], n) => {
+        const w = mkEl('span', 'cs'), b = mkEl('button'), x = mkEl('button', 'del');
+        b.style.background = `hsl(${h} ${v}% 55%)`; b.title = h + '°, ' + v + '%'; b.classList.toggle('sel', S.hue === h && S.vib === v);
+        b.onclick = () => { S.hue = h; S.vib = v; apply(); };
+        x.title = 'Удалить цвет'; x.innerHTML = ico('close', 10);
+        x.onclick = e => { e.stopPropagation(); S.customColors = S.customColors.filter((_, i) => i !== n); apply(); };
+        w.append(b, x); ctl.append(w);
+      });
+      ctl.append(plus);
+    };
+  } else if (r.t === 'fonts') {
+    d.className = 'srow col'; ctl.className = 'ctl'; ctl.style.flexWrap = 'wrap';
+    const list = mkEl('div', 'fontlist'), ni = mkEl('input');
+    ni.type = 'text'; ni.placeholder = 'Название шрифта';
+    const b1 = mkEl('button', 'btn', 'Добавить по названию'), b2 = mkEl('button', 'btn', 'Загрузить файл…');
+    b1.onclick = () => {
+      const n = ni.value.trim().replace(/["\\]/g, ''); if (!n) return;
+      if (!cfonts.some(f => f.n === n)) cfonts = [...cfonts, { n, d: null }];
+      saveFonts(); S.font = n; ni.value = ''; apply(); toast('Шрифт добавлен');
+    };
+    b2.onclick = () => {
+      const f = document.createElement('input'); f.type = 'file'; f.accept = '.ttf,.otf,.woff,.woff2';
+      f.onchange = () => {
+        const file = f.files[0]; if (!file) return;
+        if (file.size > 3e6) return toast('Файл больше 3 МБ');
+        const rd = new FileReader();
+        rd.onload = () => {
+          const n = (ni.value.trim() || file.name.replace(/\.[^.]+$/, '')).replace(/["\\]/g, '');
+          try { cfonts = [...cfonts.filter(x => x.n !== n), { n, d: rd.result }]; saveFonts(); } catch (e) { return toast('Не хватило места для шрифта'); }
+          regd.delete(n); regFonts(); S.font = n; ni.value = ''; apply(); toast('Шрифт загружен');
+        };
+        rd.readAsDataURL(file);
+      };
+      f.click();
+    };
+    r.sync = () => {
+      list.innerHTML = '';
+      cfonts.forEach(f => {
+        const c = mkEl('button', 'btn chipx', f.n); c.style.fontFamily = fam(f.n); c.insertAdjacentHTML('beforeend', ico('close', 14)); c.title = 'Удалить шрифт';
+        c.onclick = () => { cfonts = cfonts.filter(x => x !== f); saveFonts(); if (S.font === f.n) S.font = 'Segoe UI'; if (S.ntpFont === f.n) S.ntpFont = 'inherit'; apply(); };
+        list.append(c);
+      });
+    };
+    ctl.append(list, ni, b1, b2);
+  } else if (r.t === 'exts') {
+    d.className = 'srow col'; ctl.className = 'ctl'; ctl.style.flexWrap = 'wrap';
+    const list = mkEl('div', 'extlist'), add = mkEl('button', 'btn', 'Добавить расширение…');
+    const refresh = async () => {
+      const L = await ipcRenderer.invoke('ext-list'); list.innerHTML = '';
+      if (!L.length) list.append(mkEl('p', 'muted', 'Расширений пока нет.'));
+      L.forEach(e => {
+        const row = mkEl('div', 'extrow'), ic = mkEl('span', 'fi'), nm = mkEl('div', 'nm');
+        ic.innerHTML = ico('extension', 22);
+        nm.append(mkEl('b', '', e.name || e.path), mkEl('small', '', e.err ? 'Ошибка: ' + e.err : 'v' + (e.version || '?') + ' · ' + e.path));
+        const tg = mkEl('button', 'tgl' + (e.enabled ? ' on' : '')); tg.setAttribute('role', 'switch'); tg.title = e.enabled ? 'Выключить' : 'Включить';
+        tg.onclick = async () => { await ipcRenderer.invoke('ext-toggle', e.path, !e.enabled); refresh(); };
+        const del = mkEl('button', 'btn'); del.innerHTML = ico('delete', 18); del.title = 'Удалить';
+        del.onclick = async () => { await ipcRenderer.invoke('ext-remove', e.path); refresh(); };
+        row.append(ic, nm, tg, del); list.append(row);
+      });
+    };
+    add.onclick = async () => { const res = await ipcRenderer.invoke('ext-add'); if (res && res.error) toast(res.error); else if (res && res.ok) toast('Расширение добавлено'); refresh(); };
+    r.sync = () => { if (!r.loaded) { r.loaded = true; refresh(); } };
+    ctl.append(list, add);
+  } else if (r.t === 'perms') {
+    d.className = 'srow col'; ctl.className = 'ctl'; ctl.style.flexWrap = 'wrap';
+    const list = mkEl('div', 'fontlist'), clr = mkEl('button', 'btn', 'Сбросить все');
+    clr.onclick = () => { Object.keys(sitePerms).forEach(o => Object.keys(sitePerms[o]).forEach(k => setPerm(o, k, null))); syncSet(); };
+    r.sync = () => {
+      list.innerHTML = '';
+      const es = Object.entries(sitePerms).flatMap(([o, v]) => Object.entries(v).map(([k, val]) => [o, k, val]));
+      if (!es.length) list.append(mkEl('p', 'muted', 'Сохранённых разрешений нет.'));
+      es.forEach(([o, k, val]) => {
+        const c = mkEl('button', 'btn chipx', hostOnly(o) + ' · ' + PN[k] + ': ' + (val === 'allow' ? 'разрешено' : 'запрещено'));
+        c.insertAdjacentHTML('beforeend', ico('close', 14)); c.title = 'Сбросить';
+        c.onclick = () => { setPerm(o, k, null); syncSet(); }; list.append(c);
+      });
+    };
+    ctl.append(list, clr);
+  } else if (r.t === 'marks') {
+    const list = mkEl('div'); list.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;width:100%';
+    const a = mkEl('input'), u = mkEl('input'), add = mkEl('button', 'btn', 'Добавить');
+    a.type = u.type = 'text'; a.placeholder = 'Название'; u.placeholder = 'Адрес сайта';
+    r.sync = () => { list.innerHTML = ''; marks.forEach((m, n) => { const c = mkEl('button', 'btn chipx', m[0]); c.insertAdjacentHTML('beforeend', ico('close', 14)); c.title = m[1]; c.onclick = () => { marks.splice(n, 1); localStorage.marks = JSON.stringify(marks); drawLinks(); r.sync(); }; list.append(c); }); };
+    add.onclick = () => { const url = norm(u.value); if (!a.value.trim() || !url) return; marks.push([a.value.trim(), url]); localStorage.marks = JSON.stringify(marks); a.value = u.value = ''; drawLinks(); r.sync(); };
+    ctl.append(list, a, u, add);
+  }
+}
+function buildSet() {
+  const nav = $('#scats'), body = $('#sbody'); nav.innerHTML = body.innerHTML = '';
+  ORD.forEach(i => {
+    const b = mkEl('button'); b.dataset.c = i;
+    b.innerHTML = '<span class="ni">' + ico(CATICO[i], 22) + '</span>'; b.append(CATS[i]);
+    b.onclick = () => { cat = i; $('#sq').value = ''; syncSet(); }; nav.append(b);
+  });
+  R.forEach(r => { buildRow(r); body.append(r.el); });
+  $('#sq').oninput = syncSet;
+}
+function syncSet() {
+  const q = $('#sq').value.trim().toLowerCase();
+  $('#cico').innerHTML = ico(q ? 'search' : CATICO[cat], 34); $('#cico').className = 'blob b' + (q ? 2 : cat % 4);
+  $('#ctitle').textContent = q ? 'Результаты поиска' : CATS[cat];
+  [...$('#scats').children].forEach(b => b.classList.toggle('sel', !q && +b.dataset.c === cat));
+  R.forEach(r => {
+    if (r.sync) r.sync();
+    const hide = r.show && !r.show(S);
+    r.el.style.display = !hide && (q ? r.el.dataset.s.includes(q) : r.c === cat) ? '' : 'none';
+  });
+}
+function applyView() {
+  const r = document.documentElement.style, b = document.body.classList;
+  r.setProperty('--ui', S.ui / 100); r.setProperty('--tw', S.tw + 'px');
+  r.setProperty('--font', fam(S.font) + ',system-ui,sans-serif');
+  b.toggle('noanim', !S.anim); b.toggle('noprog', !S.prog); b.toggle('noicons', !S.ticons); b.toggle('nocard', !S.card);
+  ['top', 'left', 'bottom', 'right'].forEach(pn => b.toggle('tp-' + pn, S.tabPos === pn));
+  $('#ntp').style.fontFamily = S.ntpFont === 'inherit' ? '' : fam(S.ntpFont);
+  $('#ntpclock').className = 'cl-' + S.clockSize;
+  const bgOn = S.ntpBg === 'image' && !!bgData;
+  $('#ntp').classList.toggle('bg-image', bgOn);
+  const nb = $('#ntpbg');
+  nb.style.backgroundImage = bgOn ? `linear-gradient(rgba(0,0,0,${S.bgDim / 100}),rgba(0,0,0,${S.bgDim / 100})),url("${bgData}")` : 'none';
+  nb.style.filter = bgOn ? `blur(${S.bgBlur}px)` : 'none'; nb.style.transform = 'scale(1.06)';
+  ['grad', 'plain', 'accent'].forEach(n => $('#ntp').classList.toggle('bg-' + n, S.ntpBg === n));
+  $('#ntpq').style.display = S.ntpSearch ? '' : 'none';
+  $('#ntpclock').style.display = S.ntpClock ? '' : 'none';
+  tick();
+}
+function fmtTime(d, sec) {
+  const o = { hour: '2-digit', minute: '2-digit' }; if (sec) o.second = '2-digit';
+  if (S.tFmt !== 'auto') o.hour12 = S.tFmt === '12';
+  if (S.tzone !== 'system') o.timeZone = S.tzone;
+  return d.toLocaleTimeString(S.dLoc, o);
+}
+function fmtDate(d, short) {
+  if (S.dFmt === 'none') return '';
+  const tz = S.tzone !== 'system' ? { timeZone: S.tzone } : {};
+  if (S.dFmt === 'iso') return d.toLocaleDateString('sv-SE', tz);
+  const o = short ? { day: 'numeric', month: 'short' } : S.dFmt === 'long' ? { weekday: 'long', day: 'numeric', month: 'long' } : S.dFmt === 'medium' ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: '2-digit', month: '2-digit', year: 'numeric' };
+  return d.toLocaleDateString(S.dLoc, { ...o, ...tz });
+}
+function tick() {
+  const d = new Date();
+  if (S.ntpClock) $('#ntpclock').innerHTML = '<b>' + fmtTime(d, S.tSec) + '</b>' + fmtDate(d);
+  const tc = $('#tclock');
+  tc.style.display = S.tChip ? 'block' : 'none';
+  if (S.tChip) tc.textContent = fmtTime(d, S.tSec) + (S.dFmt === 'none' ? '' : ' · ' + fmtDate(d, true));
+}
+function sendCfg() {
+  ipcRenderer.send('cfg', { ask: S.askDl, dlDir: S.dlDir, blockAds: S.blockAds, blockImages: !S.images, dnt: S.dnt, thirdCookies: S.thirdCookies,
+    httpsOnly: S.httpsOnly, blockPopups: S.blockPopups, perm: { media: S.pMedia, geo: S.pGeo, notif: S.pNotif }, lang: S.lang, spell: S.spell,
+    clearOnExit: S.clearOnExit, onTop: S.onTop, startMax: S.startMax, noHw: S.noHw });
+}
+let ht;
+function apply() {
+  save(); theme(); applyView(); syncSet(); drawLinks();
+  clearTimeout(ht); ht = setTimeout(() => { sendCfg(); tabs.forEach(applyTab); drawTabs(); sync(); }, 120);
+}
+setInterval(tick, 1000);
+addEventListener('beforeunload', () => { if (S.clearHistExit && !INC) localStorage.history = '[]'; });
+mq.onchange = theme;
+
+if (+S.histDays && !INC) { const lim = Date.now() - S.histDays * 864e5; hist = hist.filter(h => h.time > lim); saveHist(); }
+regFonts();
+if (!INC) ipcRenderer.send('perm-init', sitePerms);
+document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = ico(e.dataset.i, +e.dataset.s || 22));
+theme(); applyView(); buildSet(); syncSet(); drawDl(); sendCfg();
+(function start() {
+  const prev = !INC && S.startup === 'restore' ? JSON.parse(localStorage.session || '[]') : [];
+  if (prev.length) { prev.forEach(u => newTab(u)); select(tabs[0]); }
+  else newTab(!INC && S.startup === 'home' && S.home ? norm(S.home) : '');
+})();
+</script>
+</body></html>

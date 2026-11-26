@@ -278,7 +278,9 @@ body.tp-left #incbadge,body.tp-right #incbadge{margin:0;align-self:flex-start}
 .sprow select{height:36px;border-radius:calc(12px*var(--k));border:0;background:var(--sh);color:var(--on);padding:0 10px;font:inherit}
 #sitepop .btn{margin-top:10px}
 #oic{pointer-events:auto;cursor:pointer;border:0;padding:0}
-#oic:hover{filter:brightness(.95);border-radius:calc(10px*var(--k))}
+#oic{transition:border-radius .2s,filter .2s}
+#oic:hover:not(:disabled){filter:brightness(.95)}
+#oic:active:not(:disabled){border-radius:calc(10px*var(--k))}
 #ntpbg{position:absolute!important;inset:0;z-index:0!important;background-size:cover;background-position:center;pointer-events:none}
 #ntp.bg-image::before,#ntp.bg-image::after{display:none}
 #ntp.bg-image h1,#ntp.bg-image #ntpclock,#ntp.bg-image #ntpclock b,#ntp.bg-image #incnote{color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.45)}
@@ -292,6 +294,24 @@ body.tp-left #incbadge,body.tp-right #incbadge{margin:0;align-self:flex-start}
 .extrow b{display:block;font-weight:500}
 .extrow small{display:block;color:var(--on2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .extrow .btn{margin:0;padding:8px 12px}
+/* ===== собственные кнопки окна (как в Яндекс Браузере, в стиле Material You) ===== */
+#wc{position:absolute;top:0;right:0;height:54px;display:none;align-items:center;gap:3px;padding:0 12px;z-index:60}
+body.frameless #wc{display:flex}
+body.fs #wc{display:none!important}
+.wb{width:46px;height:34px;display:grid;place-items:center;background:var(--sh);color:var(--on);border-radius:calc(6px*var(--k));transition:background .2s,border-radius .2s,color .2s}
+.wb:first-child{border-radius:calc(17px*var(--k)) calc(6px*var(--k)) calc(6px*var(--k)) calc(17px*var(--k))}
+.wb:last-child{border-radius:calc(6px*var(--k)) calc(17px*var(--k)) calc(17px*var(--k)) calc(6px*var(--k))}
+.wb:hover{background:var(--pc);color:var(--onpc)}
+.wb:active{border-radius:calc(17px*var(--k))}
+.wb.close:hover{background:light-dark(hsl(0 75% 90%),hsl(0 40% 28%));color:light-dark(hsl(0 65% 28%),hsl(0 85% 88%))}
+.wb.close:active{background:light-dark(hsl(0 70% 82%),hsl(0 45% 36%))}
+.wb svg{display:block;pointer-events:none}
+body.frameless:not(.fs).tp-top #tabs{padding-right:calc(176px/var(--ui,1))}
+body.frameless:not(.fs).tp-bottom #bar,body.frameless:not(.fs).tp-left #bar{padding-right:calc(176px/var(--ui,1))}
+body.frameless:not(.fs).tp-right #tabs{padding-top:calc(58px/var(--ui,1))}
+body.frameless:not(.fs).tp-top #tabs,body.frameless:not(.fs):not(.tp-top) #bar{-webkit-app-region:drag}
+body.frameless #tabs *,body.frameless #bar *{-webkit-app-region:no-drag}
+body.frameless:has(#scrim.on,#pscrim.on,#permpop.on) #tabs,body.frameless:has(#scrim.on,#pscrim.on,#permpop.on) #bar{-webkit-app-region:no-drag}
 @media(prefers-reduced-motion:reduce){#ntp::before,#ntp::after{animation:none}}
 @media(prefers-reduced-motion:reduce){#load.on{animation:none;width:100%}#dl.busy{animation:none}.side{transition:none}}
 </style></head>
@@ -340,6 +360,11 @@ body.tp-left #incbadge,body.tp-right #incbadge{margin:0;align-self:flex-start}
   </main>
 </aside>
 <div id="toast"></div>
+<div id="wc" role="group" aria-label="Управление окном">
+  <button class="wb" id="wmin" title="Свернуть" aria-label="Свернуть"><i data-i="winmin" data-s="18"></i></button>
+  <button class="wb" id="wmax" title="Развернуть" aria-label="Развернуть"><i data-i="winmax" data-s="18"></i></button>
+  <button class="wb close" id="wclose" title="Закрыть" aria-label="Закрыть"><i data-i="close" data-s="18"></i></button>
+</div>
 <script>
 const { ipcRenderer } = require('electron');
 const $ = s => document.querySelector(s);
@@ -349,6 +374,9 @@ const PART = 'inc-' + Date.now(); // без префикса persist: — сес
 if (INC) document.body.classList.add('inc');
 
 const IC = {
+  winmin: 'M5 11h14v2H5z',
+  winmax: 'M5 5h14v14H5V5zm2 2v10h10V7H7z',
+  winrestore: 'M8 5h11v11h-2V7H8V5zM5 8h11v11H5V8zm2 2v7h7v-7H7z',
   back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
   forward: 'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
   refresh: 'M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
@@ -657,6 +685,19 @@ function key(c) {
 }
 addEventListener('keydown', e => { if (e.key === 'Escape') return closeAll(); if (key(combo(e))) e.preventDefault(); });
 ipcRenderer.on('combo', (_, c) => key(c));
+// собственные кнопки окна (окно без системной рамки)
+document.body.classList.add('frameless');
+function winState(s) {
+  document.body.classList.toggle('fs', !!s.full);
+  const m = !!s.max, b = $('#wmax');
+  b.innerHTML = ico(m ? 'winrestore' : 'winmax', 18);
+  b.title = m ? 'Свернуть в окно' : 'Развернуть'; b.setAttribute('aria-label', b.title);
+}
+$('#wmin').onclick = () => ipcRenderer.send('win-min');
+$('#wmax').onclick = () => ipcRenderer.send('win-max');
+$('#wclose').onclick = () => ipcRenderer.send('win-close');
+ipcRenderer.on('win-state', (_, s) => winState(s));
+ipcRenderer.invoke('win-state').then(winState);
 ipcRenderer.on('open-tab', (_, u, bg) => newTab(u, bg || S.popupBg));
 
 /* ---------- разрешения сайтов (окно запроса внутри браузера) ---------- */

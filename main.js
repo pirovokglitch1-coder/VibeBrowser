@@ -31,10 +31,12 @@ function decision(host, origin, key) {
 
 function create(incognito) {
   const w = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 700, minHeight: 450, backgroundColor: '#1c1b1f', autoHideMenuBar: true,
+    width: 1280, height: 800, minWidth: 700, minHeight: 450, backgroundColor: '#1c1b1f', autoHideMenuBar: true, frame: false,
     webPreferences: { webviewTag: true, nodeIntegration: true, contextIsolation: false }
   });
   if (incognito) incIds.add(w.webContents.id);
+  const sendState = () => { if (!w.isDestroyed()) w.webContents.send('win-state', { max: w.isMaximized(), full: w.isFullScreen() }); };
+  ['maximize', 'unmaximize', 'restore', 'enter-full-screen', 'leave-full-screen'].forEach(ev => w.on(ev, sendState));
   w.loadFile('index.html', incognito ? { query: { incognito: '1' } } : undefined);
 }
 
@@ -185,6 +187,11 @@ ipcMain.handle('import-file', async (e, kind) => {
   fs.copyFileSync(src, dest);
   return { path: dest, name: path.parse(src).name };
 });
+const winOf = e => BrowserWindow.fromWebContents(e.sender);
+ipcMain.on('win-min', e => { const w = winOf(e); if (w) w.minimize(); });
+ipcMain.on('win-max', e => { const w = winOf(e); if (w) (w.isMaximized() ? w.unmaximize() : w.maximize()); });
+ipcMain.on('win-close', e => { const w = winOf(e); if (w) w.close(); });
+ipcMain.handle('win-state', e => { const w = winOf(e); return { max: !!w && w.isMaximized(), full: !!w && w.isFullScreen() }; });
 ipcMain.on('incognito', () => create(true));
 ipcMain.on('fullscreen', e => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!w.isFullScreen()); });
 ipcMain.on('relaunch', () => { app.relaunch(); app.exit(0); });

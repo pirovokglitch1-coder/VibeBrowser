@@ -378,6 +378,34 @@ button:active:not(:disabled),.tab:active,.hrow:active{border-radius:calc(11px*va
 .chead b{display:block;font-weight:500}
 .chead small{display:block;color:var(--on2);max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.ctxopen #tabs,body.ctxopen #bar{-webkit-app-region:no-drag!important}
+/* ===== v7: плавные вкладки, растущая строка поиска, меню из курсора ===== */
+textarea{caret-color:var(--p)}
+.ow{height:46px}
+.ow #omni{position:absolute;left:0;top:0;right:0;width:auto;height:46px;display:block;box-sizing:border-box;padding:12px 20px 12px 52px;font:inherit;font-size:15px;line-height:22px;resize:none;white-space:pre;overflow:hidden;z-index:30}
+.ow #omni:focus{white-space:pre-wrap;overflow-wrap:anywhere;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+.ow #omni.big{border-radius:calc(22px*var(--k))}
+#oic{z-index:31}
+#ntpq{display:block;box-sizing:border-box;resize:none;height:60px;padding:16px 28px;line-height:28px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+#logo{cursor:pointer;transition:transform .2s}
+#logo:hover{transform:scale(1.06)}
+#logo:active{transform:scale(.94)}
+.tab .tic{display:grid;place-items:center;flex:none;width:20px;height:20px;overflow:visible}
+.noicons .tab .tic{display:none}
+.tab.entering,.tab.closing{overflow:hidden}
+.tab.entering{animation:tabin .24s cubic-bezier(.2,.8,.2,1) both}
+.tab.closing{animation:tabout .2s cubic-bezier(.4,0,1,1) both;pointer-events:none}
+@keyframes tabin{from{opacity:0;transform:scale(.8);max-width:0;min-width:0;padding-left:0;padding-right:0}to{opacity:1;transform:none;max-width:var(--tw,220px)}}
+@keyframes tabout{to{opacity:0;transform:scale(.8);max-width:0;min-width:0;padding-left:0;padding-right:0}}
+body.tp-left .tab.entering,body.tp-right .tab.entering{animation-name:tabinv}
+body.tp-left .tab.closing,body.tp-right .tab.closing{animation-name:tabouty}
+@keyframes tabinv{from{opacity:0;transform:scale(.92);max-height:0;height:0;min-height:0}to{opacity:1;transform:none;max-height:40px;height:40px}}
+@keyframes tabouty{to{opacity:0;transform:scale(.92);max-height:0;height:0;min-height:0;margin-top:-6px}}
+@keyframes cin{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:none}}
+#cmenu.on{animation-duration:.22s}
+.ci{animation:none}
+#cmenu.on .ci{animation:ciin .2s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*16ms)}
+#cmenu.up.on .ci{animation-name:ciup}
+@keyframes ciup{from{opacity:0;transform:translateY(5px)}}
 @media(prefers-reduced-motion:reduce){#ntp::before,#ntp::after{animation:none}}
 @media(prefers-reduced-motion:reduce){#load.on{animation:none;width:100%}#dl.busy{animation:none}.side{transition:none}}
 </style></head>
@@ -387,13 +415,13 @@ body.ctxopen #tabs,body.ctxopen #bar{-webkit-app-region:no-drag!important}
   <button class="ib" id="back" title="Назад"><i data-i="back"></i></button>
   <button class="ib" id="fwd" title="Вперёд"><i data-i="forward"></i></button>
   <button class="ib" id="reload" title="Обновить (Ctrl+R)"><i data-i="refresh"></i></button>
-  <div class="ow"><button id="oic" title="Информация о сайте и разрешения"></button><input id="omni" placeholder="Введите адрес или запрос" autocomplete="off" spellcheck="false"></div>
+  <div class="ow"><button id="oic" title="Информация о сайте и разрешения"></button><textarea id="omni" rows="1" placeholder="Введите адрес или запрос" autocomplete="off" spellcheck="false"></textarea></div>
   <button class="ib" id="dl" title="Загрузки (Ctrl+J)"><i data-i="download"></i></button>
   <button class="ib" id="dots" title="Меню"><i data-i="more"></i></button>
   <div id="load"></div>
 </div>
 <div id="views">
-  <div id="ntp"><div id="ntpbg"></div><i id="logo" data-i="logo" data-s="76"></i><div id="ntpclock"></div><h1 id="ntph">Vibe Browser</h1><p id="incnote">Режим инкогнито: история, куки и данные сайтов не сохраняются после закрытия этого окна.</p><input id="ntpq"><div id="links"></div></div>
+  <div id="ntp"><div id="ntpbg"></div><i id="logo" data-i="logo" data-s="76" role="button" tabindex="0" title="О браузере"></i><div id="ntpclock"></div><h1 id="ntph">Vibe Browser</h1><p id="incnote">Режим инкогнито: история, куки и данные сайтов не сохраняются после закрытия этого окна.</p><textarea id="ntpq" rows="1" spellcheck="false"></textarea><div id="links"></div></div>
 </div>
 
 <div id="pscrim"></div>
@@ -701,32 +729,61 @@ function select(t) {
   tabs.forEach(x => x.wv.classList.toggle('on', x === t && !!x.url));
   $('#ntp').classList.toggle('on', !t.url);
   drawTabs(); sync(); drawLinks(); tick();
+  if (!t.url) { $('#ntpq').value = ''; $('#omni').value = ''; fitNtp(); fitOmni(); }
 }
 function closeTab(t) {
   const i = tabs.indexOf(t); if (i < 0) return;
   if (/^https?:/.test(t.url)) closed.push(t.url);
-  t.wv.remove(); tabs.splice(i, 1);
+  t.wv.remove(); tabs.splice(i, 1); killTabEl(t);
   if (!tabs.length) { if (S.closeLast) window.close(); else newTab(); }
   else if (t === active) select(tabs[Math.max(0, i - 1)]); else drawTabs();
 }
+let plusBtn = null, tabsReady = false;
+setTimeout(() => { tabsReady = true; }, 500);   // вкладки, созданные при запуске, не анимируются
+function tabEl(t) {
+  if (t.el) return t.el;
+  const d = t.el = document.createElement('div'); d.className = 'tab'; d._t = t;
+  const ic = document.createElement('span'); ic.className = 'tic'; d.append(ic);
+  const sp = document.createElement('span'); sp.className = 'ttl'; d.append(sp);
+  const x = document.createElement('button'); x.innerHTML = ico('close', 16); x.title = 'Закрыть (Ctrl+W)'; d.append(x);
+  d.onclick = () => select(t);
+  d.onauxclick = e => { if (e.button === 1 && S.midClose) closeTab(t); };
+  x.onclick = e => { e.stopPropagation(); closeTab(t); };
+  const cl = document.body.classList;
+  if (tabsReady && !cl.contains('noanim') && !cl.contains('lowend')) { d.classList.add('entering'); setTimeout(() => d.classList.remove('entering'), 320); }
+  return d;
+}
+function updTab(t) {
+  const d = tabEl(t);
+  d.classList.toggle('on', t === active); d.classList.toggle('zz', !!t.lazy);
+  const ic = d.firstChild;
+  if (t.icon) {
+    let im = ic.firstChild;
+    if (!im || im.tagName !== 'IMG') { ic.innerHTML = ''; im = document.createElement('img'); ic.append(im); }
+    if (im.getAttribute('src') !== t.icon) im.src = t.icon;
+  } else if (!ic.firstChild || ic.firstChild.tagName === 'IMG') ic.innerHTML = ico('logo', 18);
+  const sp = d.children[1]; if (sp.textContent !== t.title) sp.textContent = t.title;
+}
+function killTabEl(t) {
+  const el = t.el; if (!el) return; t.el = null;
+  const cl = document.body.classList;
+  if (cl.contains('noanim') || cl.contains('lowend')) return el.remove();
+  el.classList.remove('entering'); el.classList.add('closing');
+  setTimeout(() => el.remove(), 230);
+}
 function drawTabsNow() {
-  const box = $('#tablist'); box.innerHTML = '';
-  tabs.forEach(t => {
-    const d = document.createElement('div'); d.className = 'tab' + (t === active ? ' on' : '') + (t.lazy ? ' zz' : '');
-    if (t.icon) { const im = document.createElement('img'); im.src = t.icon; d.append(im); }
-    else { const f = document.createElement('span'); f.className = 'fav'; f.innerHTML = ico('logo', 18); d.append(f); }
-    const sp = document.createElement('span'); sp.textContent = t.title; d.append(sp);
-    const x = document.createElement('button'); x.innerHTML = ico('close', 16); x.title = 'Закрыть (Ctrl+W)'; d.append(x);
-    d._t = t; d.onclick = () => select(t);
-    d.onauxclick = e => { if (e.button === 1 && S.midClose) closeTab(t); };
-    x.onclick = e => { e.stopPropagation(); closeTab(t); };
-    box.append(d);
-  });
-  // кнопка новой вкладки — сразу справа от последней вкладки
-  const pl = document.createElement('button'); pl.className = 'ib plus'; pl.id = 'plus'; pl.innerHTML = ico('add', 22);
-  pl.title = 'Новая вкладка (Ctrl+T)'; pl.onclick = blankTab; box.append(pl);
+  const box = $('#tablist');
+  if (!plusBtn) {
+    plusBtn = document.createElement('button'); plusBtn.className = 'ib plus'; plusBtn.id = 'plus'; plusBtn.innerHTML = ico('add', 22);
+    plusBtn.title = 'Новая вкладка (Ctrl+T)'; plusBtn.onclick = blankTab;   // кнопка — сразу справа от последней вкладки
+  }
+  const live = n => { while (n && n.classList && n.classList.contains('closing')) n = n.nextSibling; return n; };
+  let ref = live(box.firstChild);
+  tabs.forEach(t => { updTab(t); const el = t.el; if (el === ref) ref = live(ref.nextSibling); else box.insertBefore(el, ref); });
+  if (box.lastChild !== plusBtn) box.append(plusBtn);
   saveSession();
 }
+
 let dtq = 0;
 function drawTabs() { if (dtq) return; dtq = requestAnimationFrame(() => { dtq = 0; drawTabsNow(); }); }
 function sync() {
@@ -772,6 +829,7 @@ $('#dlclear').onclick = () => { dls = dls.filter(d => d.state === 'progressing')
 /* ---------- панель инструментов ---------- */
 $('#omni').onkeydown = e => {
   if (e.key !== 'Enter') return;
+  e.preventDefault();
   const v = e.target.value.trim(), u = norm(v); if (!u) return;
   const isUrl = /^https?:\/\//i.test(v) || (!v.includes(' ') && /^[^\s]+\.[^\s]{2,}$/.test(v));
   if (S.searchNew && !isUrl) newTab(u); else go(v);
@@ -779,7 +837,7 @@ $('#omni').onkeydown = e => {
 };
 $('#omni').onfocus = e => { e.target.value = active.url === 'about:blank' ? '' : active.url; if (S.omniSel) e.target.select(); };
 $('#omni').onblur = sync;
-$('#ntpq').onkeydown = e => { if (e.key === 'Enter') go(e.target.value); };
+$('#ntpq').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(e.target.value); } };
 $('#back').onclick = () => safe(() => active.wv.goBack());
 $('#fwd').onclick = () => safe(() => active.wv.goForward());
 $('#reload').onclick = () => safe(() => active.loading ? active.wv.stop() : active.wv.reload());
@@ -1011,9 +1069,14 @@ function showCtx(x, y, items) {
   m.style.display = 'block'; m.style.maxHeight = (innerHeight - 16) + 'px';
   $('#cscrim').style.display = 'block'; document.body.classList.add('ctxopen');
   const w = m.offsetWidth, h = m.offsetHeight;
-  const left = x + w + 8 > innerWidth ? Math.max(8, x - w) : x, top = y + h + 8 > innerHeight ? Math.max(8, y - h) : y;
+  // раскрываем меню в ту сторону от курсора, где хватает места
+  let left = x + w + 8 > innerWidth ? x - w : x, top = y + h + 8 > innerHeight ? y - h : y;
+  left = Math.max(8, Math.min(left, innerWidth - w - 8)); top = Math.max(8, Math.min(top, innerHeight - h - 8));
   m.style.left = left + 'px'; m.style.top = top + 'px';
-  m.style.transformOrigin = (top < y ? 'bottom ' : 'top ') + (left < x ? 'right' : 'left');
+  m.style.transformOrigin = Math.round(x - left) + 'px ' + Math.round(y - top) + 'px';   // анимация растёт ровно из точки нажатия
+  const up = y - top > h / 2, btns = [...m.querySelectorAll('.ci')];
+  btns.forEach((b, i) => b.style.setProperty('--i', Math.min(up ? btns.length - 1 - i : i, 12)));
+  m.classList.toggle('up', up);
   void m.offsetWidth; m.classList.add('on'); ctxState = { hl: -1 };
 }
 $('#cscrim').onmousedown = () => closeCtx();
@@ -1150,6 +1213,29 @@ document.addEventListener('contextmenu', e => {
   const inp = el.closest('input[type=text],input:not([type]),textarea'); if (inp && typeof inp.selectionStart === 'number') { inp.focus(); return editMenu(X, Y, inp); }
   closeCtx();
 }, true);
+
+/* ---------- строки поиска растут вниз, логотип открывает «О браузере» ---------- */
+function fitOmni() {
+  const o = $('#omni');
+  if (document.activeElement !== o) { o.style.height = ''; o.classList.remove('big'); o.scrollTop = 0; return; }
+  o.style.height = '46px';
+  const h = Math.min(o.scrollHeight, Math.round(innerHeight * 0.45));
+  o.style.height = h + 'px'; o.classList.toggle('big', h > 50);
+}
+function fitNtp() {
+  const q = $('#ntpq'); q.style.height = '60px';
+  const h = Math.min(Math.max(q.scrollHeight, 60), Math.round(innerHeight * 0.4));
+  q.style.height = h + 'px'; q.style.overflowY = q.scrollHeight > h + 1 ? 'auto' : 'hidden';
+}
+const oneLine = el => { if (/[\r\n]/.test(el.value)) el.value = el.value.replace(/\s*[\r\n]+\s*/g, ' '); };
+$('#omni').addEventListener('input', e => { oneLine(e.target); fitOmni(); });
+$('#omni').addEventListener('focus', () => requestAnimationFrame(fitOmni));
+$('#omni').addEventListener('blur', () => setTimeout(fitOmni, 0));
+$('#ntpq').addEventListener('input', e => { oneLine(e.target); fitNtp(); });
+addEventListener('resize', () => { fitOmni(); fitNtp(); });
+function openAbout() { openSide('set'); cat = 12; $('#sq').value = ''; syncSet(); }
+$('#logo').onclick = openAbout;
+$('#logo').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAbout(); } };
 
 /* ---------- настройки ---------- */
 const CATS = ['Внешний вид', 'Новая вкладка', 'Поиск', 'Запуск', 'Вкладки', 'Страницы', 'Приватность', 'Загрузки', 'История', 'Окно', 'Клавиши', 'Данные', 'О браузере', 'Расширения', 'Дата и время', 'Скорость'];

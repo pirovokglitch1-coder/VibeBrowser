@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, session, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, session, Menu, webContents } = require('electron');
 const path = require('path'), fs = require('fs');
 
 // Аппаратное ускорение выключается только до старта приложения — читаем флаг из файла
@@ -127,6 +127,12 @@ for (let n = 1; n <= 9; n++) KEYS.add('c:' + n);
 app.on('web-contents-created', (_, c) => {
   if (c.getType() !== 'webview') return;
   hook(c.session);
+  // правая кнопка в странице: меню рисует сам браузер (в интерфейсе), здесь только передаём данные
+  c.on('context-menu', (e, p) => {
+    const host = c.hostWebContents; if (!host || host.isDestroyed()) return;
+    host.send('ctx', { wcid: c.id, x: p.x, y: p.y, link: p.linkURL, src: p.srcURL, media: p.mediaType, hasImg: p.hasImageContents,
+      sel: p.selectionText, edit: p.isEditable, flags: p.editFlags, page: p.pageURL, spell: p.misspelledWord, sugg: p.dictionarySuggestions || [] });
+  });
   c.setWindowOpenHandler(d => {
     if (C.blockPopups && d.disposition === 'new-window') return { action: 'deny' };
     c.hostWebContents.send('open-tab', d.url, d.disposition === 'background-tab');
@@ -216,6 +222,11 @@ ipcMain.on('win-max', e => { const w = winOf(e); if (w) (w.isMaximized() ? w.unm
 ipcMain.on('win-close', e => { const w = winOf(e); if (w) w.close(); });
 ipcMain.handle('win-state', e => { const w = winOf(e); return { max: !!w && w.isMaximized(), full: !!w && w.isFullScreen() }; });
 ipcMain.on('preconnect', (_, u) => { if (/^https?:/i.test(u || '')) { try { session.defaultSession.preconnect({ url: u, numSockets: 2 }); } catch (e) {} } });
+ipcMain.on('ctx-do', (e, a) => {
+  const wc = webContents.fromId(a.wcid); if (!wc || wc.isDestroyed()) return;
+  if (a.op === 'copyImage') wc.copyImageAt(a.x, a.y);
+  else if (a.op === 'inspect') wc.inspectElement(a.x, a.y);
+});
 ipcMain.on('incognito', () => create(true));
 ipcMain.on('fullscreen', e => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!w.isFullScreen()); });
 ipcMain.on('relaunch', () => { app.relaunch(); app.exit(0); });

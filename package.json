@@ -4,15 +4,43 @@
   "description": "Браузер в стиле Material You",
   "author": "Vibe",
   "main": "main.js",
-  "scripts": { "start": "electron .", "dist": "electron-builder --win --publish never" },
-  "devDependencies": { "electron": "^31.0.0", "electron-builder": "^24.13.3" },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
   "build": {
     "appId": "dev.vibe.browser",
     "productName": "Vibe Browser",
-    "files": ["main.js", "index.html", "icon.png"],
-    "directories": { "buildResources": "build" },
-    "win": { "icon": "build/icon.ico", "target": ["nsis", "portable"] },
-    "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Vibe Browser", "artifactName": "VibeBrowserSetup.exe" },
-    "portable": { "artifactName": "VibeBrowser.exe" }
+    "files": [
+      "main.js",
+      "index.html",
+      "icon.png",
+      "fonts/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vibe Browser",
+      "artifactName": "VibeBrowserSetup.exe"
+    },
+    "portable": {
+      "artifactName": "VibeBrowser.exe"
+    }
   }
 }

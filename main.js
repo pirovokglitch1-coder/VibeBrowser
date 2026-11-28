@@ -12,7 +12,11 @@ let lastFlags = JSON.stringify({ noHw: !!F.noHw, lowEnd: !!F.lowEnd, bgc: F.bgc 
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,MediaRouter,Translate,OptimizationHints,AutofillServerCommunication');
 app.commandLine.appendSwitch('enable-features', 'ParallelDownloading,BackForwardCache');
 app.commandLine.appendSwitch('disk-cache-size', String(512 * 1024 * 1024));
-if (F.lowEnd) { app.commandLine.appendSwitch('enable-low-end-device-mode'); app.commandLine.appendSwitch('renderer-process-limit', '4'); }
+// без фоновых служб Chromium (обновление компонентов, телеметрия, проверки) — меньше нагрузки в простое
+['disable-background-networking', 'disable-component-update', 'disable-domain-reliability', 'disable-client-side-phishing-detection', 'no-pings', 'disable-breakpad', 'disable-default-apps']
+  .forEach(f => app.commandLine.appendSwitch(f));
+if (!F.noHw) { app.commandLine.appendSwitch('enable-gpu-rasterization'); app.commandLine.appendSwitch('enable-zero-copy'); }
+if (F.lowEnd) { app.commandLine.appendSwitch('enable-low-end-device-mode'); app.commandLine.appendSwitch('renderer-process-limit', '4'); app.commandLine.appendSwitch('disable-smooth-scrolling'); }
 app.setAppUserModelId('dev.vibe.browser');
 const ICON = path.join(__dirname, 'icon.png');
 // Один процесс на все окна: повторный запуск открывает новое окно мгновенно

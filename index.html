@@ -406,6 +406,17 @@ body.tp-left .tab.closing,body.tp-right .tab.closing{animation-name:tabouty}
 #cmenu.on .ci{animation:ciin .2s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*16ms)}
 #cmenu.up.on .ci{animation-name:ciup}
 @keyframes ciup{from{opacity:0;transform:translateY(5px)}}
+/* ===== v8 ===== */
+/* 2) значок-лупа адресной строки больше не просвечивает поверх настроек и других панелей */
+.ow #omni{z-index:5}
+#oic{z-index:6}
+/* 1) строка поиска в настройках: та же ширина, высота и форма, что у кнопок разделов */
+.sqw{display:flex;align-items:center;gap:14px;width:100%;height:56px;padding:0 18px 0 12px;margin:4px 0 0;border-radius:calc(28px*var(--k));background:var(--sh);cursor:text;transition:background .2s,box-shadow .2s}
+.sqw:focus-within{background:var(--s);box-shadow:0 0 0 2px var(--p)}
+.sqw .ni{background:var(--pc);color:var(--onpc)}
+#snav .sqw #sq{flex:1;min-width:0;width:auto;height:100%;margin:0;padding:0;border:0;border-radius:0;background:transparent;font-size:15px;outline:0}
+/* 4) названия вкладок не пересчитывают «…» при изменении ширины: текст просто плавно обрезается */
+.tab .ttl{text-overflow:clip;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent)}
 @media(prefers-reduced-motion:reduce){#ntp::before,#ntp::after{animation:none}}
 @media(prefers-reduced-motion:reduce){#load.on{animation:none;width:100%}#dl.busy{animation:none}.side{transition:none}}
 </style></head>
@@ -445,7 +456,7 @@ body.tp-left .tab.closing,body.tp-right .tab.closing{animation-name:tabouty}
 <aside class="side wide" id="set" aria-label="Настройки">
   <nav id="snav">
     <div class="shead"><button class="ib" data-close title="Назад"><i data-i="back"></i></button><h2>Настройки</h2></div>
-    <input type="text" id="sq" placeholder="Поиск по настройкам" autocomplete="off">
+    <label class="sqw"><span class="ni"><i data-i="search" data-s="20"></i></span><input type="text" id="sq" placeholder="Поиск по настройкам" autocomplete="off"></label>
     <div id="scats"></div>
   </nav>
   <main id="smain">
@@ -789,6 +800,7 @@ function drawTabs() { if (dtq) return; dtq = requestAnimationFrame(() => { dtq =
 function sync() {
   const shown = active.url === 'about:blank' ? '' : active.url;
   $('#oic').innerHTML = ico(!shown ? 'search' : shown.startsWith('https:') ? 'lock' : 'warn', 18);
+  $('#oic').title = !shown ? 'Начать поиск' : 'Сведения о сайте и разрешения';
   if (document.activeElement !== $('#omni')) $('#omni').value = S.omniDomain ? (safe(() => new URL(shown).host) || shown) : shown;
   $('#load').classList.toggle('on', active.loading);
   // кнопка «обновить» превращается в крестик, пока страница грузится
@@ -937,7 +949,11 @@ function openSite() {
   }
   openPop('sitepop');
 }
-$('#oic').onclick = openSite;
+$('#oic').onclick = () => {
+  if (!active.url) { const q = $('#ntpq'); if (S.ntpSearch && q.offsetParent !== null) q.focus(); else $('#omni').focus(); return; }
+  if (active.url === 'about:blank') { $('#omni').focus(); return; }
+  openSite();
+};
 
 /* ---------- Material You: выпадающие списки, ползунки, подсказки ---------- */
 const selDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
@@ -1097,7 +1113,9 @@ addEventListener('keydown', e => {
 // меню страницы: действия зависят от того, на что нажали (картинка, ссылка, текст, поле ввода)
 function pageMenu(p) {
   const t = active; if (!t || !t.wv || !t.wv.getBoundingClientRect) return;
-  const wv = t.wv, r = wv.getBoundingClientRect(), x = r.left + p.x, y = r.top + p.y, f = p.flags || {};
+  const wv = t.wv, r = wv.getBoundingClientRect(), f = p.flags || {};
+  const okc = typeof p.cx === 'number' && p.cx >= 0 && p.cy >= 0 && p.cx <= innerWidth && p.cy <= innerHeight;
+  const x = okc ? p.cx : r.left + p.x, y = okc ? p.cy : r.top + p.y;   // меню раскрывается ровно из курсора
   const cp = txt => { clipboard.writeText(txt); toast('Скопировано'); };
   const foc = fn => () => { wv.focus(); safe(fn); };
   const isImg = p.media === 'image' || (p.hasImg && !!p.src), isMedia = (p.media === 'video' || p.media === 'audio') && !!p.src;

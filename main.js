@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, session, Menu, webContents } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, session, Menu, webContents, screen } = require('electron');
 const path = require('path'), fs = require('fs');
 
 // Аппаратное ускорение выключается только до старта приложения — читаем флаг из файла
@@ -130,7 +130,10 @@ app.on('web-contents-created', (_, c) => {
   // правая кнопка в странице: меню рисует сам браузер (в интерфейсе), здесь только передаём данные
   c.on('context-menu', (e, p) => {
     const host = c.hostWebContents; if (!host || host.isDestroyed()) return;
-    host.send('ctx', { wcid: c.id, x: p.x, y: p.y, link: p.linkURL, src: p.srcURL, media: p.mediaType, hasImg: p.hasImageContents,
+    // координаты берём у самого курсора (а не из параметров страницы): они точны при любом масштабе экрана и страницы
+    let cx, cy; const w = BrowserWindow.fromWebContents(host);
+    if (w) { const pt = screen.getCursorScreenPoint(), b = w.getContentBounds(); cx = pt.x - b.x; cy = pt.y - b.y; }
+    host.send('ctx', { wcid: c.id, x: p.x, y: p.y, cx, cy, link: p.linkURL, src: p.srcURL, media: p.mediaType, hasImg: p.hasImageContents,
       sel: p.selectionText, edit: p.isEditable, flags: p.editFlags, page: p.pageURL, spell: p.misspelledWord, sugg: p.dictionarySuggestions || [] });
   });
   c.setWindowOpenHandler(d => {

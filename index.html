@@ -437,6 +437,29 @@ body.tp-left .tab.closing,body.tp-right .tab.closing{animation-name:tabouty}
 webview{z-index:0}
 /* длинные списки отрисовываются только когда попадают в видимую область */
 .srow,.hrow{content-visibility:auto;contain-intrinsic-size:auto 60px}
+/* ===== v10: плавные полосы прокрутки, кольцо загрузки ===== */
+.nsb{scrollbar-width:none}
+.nsb::-webkit-scrollbar{display:none}
+.sbar{position:absolute;width:18px;z-index:2;display:none;touch-action:none}
+.sbth{position:absolute;top:0;right:4px;width:5px;border-radius:6px;background:color-mix(in srgb,var(--on) 24%,transparent);will-change:transform;transition:width .25s cubic-bezier(.2,.8,.2,1),right .25s cubic-bezier(.2,.8,.2,1),background-color .25s ease}
+.sbar:hover .sbth,.sbar.drag .sbth{width:12px;right:3px;background:var(--p)}
+#scats{margin:6px 0 0;scrollbar-gutter:auto}
+#hist{display:flex;flex-direction:column;overflow:hidden}
+#hist #hlist{flex:1;min-height:0;overflow-y:auto;margin-top:8px}
+#dlpop{overflow:hidden}
+#dlpop.on{display:flex;flex-direction:column}
+#dllist{overflow-y:auto;min-height:0;max-height:calc(70vh - 120px)}
+#dl.busy{animation:none}
+#dl .dlring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;transform:rotate(-90deg);transition:opacity .25s}
+#dl.act .dlring{opacity:1}
+.dlring circle{fill:none;stroke-width:3;stroke-linecap:round}
+.dlring .trk{stroke:color-mix(in srgb,var(--on) 16%,transparent)}
+.dlring .prg{stroke:var(--p);stroke-dasharray:100.53;stroke-dashoffset:100.53;transition:stroke-dashoffset .35s ease}
+#dl.ind .dlring{animation:dlspin 1.1s linear infinite}
+@keyframes dlspin{to{transform:rotate(270deg)}}
+#dl.ok,#dl.ok:hover{background:var(--p);color:var(--onp)}
+#dl.ok i{animation:okpop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes okpop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
 @media(prefers-reduced-motion:reduce){#ntp::before,#ntp::after{animation:none}}
 @media(prefers-reduced-motion:reduce){#load.on{animation:none;width:100%}#dl.busy{animation:none}.side{transition:none}}
 </style></head>
@@ -569,7 +592,9 @@ const DEF = {
   tabPos: 'top', ntpFont: 'inherit', bgBlur: 0, bgDim: 25, tFmt: '24', tSec: false, dFmt: 'long', tzone: 'system', dLoc: 'ru', tChip: false, clockSize: 'l'
 };
 let S = Object.assign({}, DEF, JSON.parse(localStorage.settings || '{}'));
-const save = () => localStorage.settings = JSON.stringify(S);
+let svt;
+const flushSave = () => { clearTimeout(svt); localStorage.settings = JSON.stringify(S); };
+const save = () => { clearTimeout(svt); svt = setTimeout(flushSave, 250); };
 // один раз переводим старый шрифт по умолчанию на Visby Round (явный выбор другого шрифта не трогаем)
 if (!localStorage.fontMig1) { localStorage.fontMig1 = '1'; if (S.font === 'Segoe UI') { S.font = 'Visby Round'; save(); } }
 const ENG = {
@@ -616,7 +641,7 @@ function addHist(t, url) {
   const h = hist[0];
   if (h && h.url === url && Date.now() - h.time < 3000) return;
   hist.unshift({ url, title: url, time: Date.now() });
-  if (hist.length > 3000) hist.length = 3000;
+  if (hist.length > 2000) hist.length = 2000;
   saveHist();
 }
 function dayLabel(d) {
@@ -624,9 +649,10 @@ function dayLabel(d) {
   const diff = Math.round((a - b) / 864e5);
   return diff === 0 ? 'Сегодня' : diff === 1 ? 'Вчера' : d.toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+let histMax = 120;
 function drawHist() {
   const q = $('#hq').value.trim().toLowerCase(), box = $('#hlist'); box.innerHTML = '';
-  const list = hist.filter(h => !q || h.title.toLowerCase().includes(q) || h.url.toLowerCase().includes(q)).slice(0, 300);
+  const flt = hist.filter(h => !q || h.title.toLowerCase().includes(q) || h.url.toLowerCase().includes(q)), list = flt.slice(0, histMax);
   if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = INC ? 'В режиме инкогнито история не сохраняется.' : 'История пуста.'; box.append(p); return; }
   let day = '';
   list.forEach(h => {
@@ -642,6 +668,7 @@ function drawHist() {
     r.querySelector('button').onclick = e => { e.stopPropagation(); hist.splice(hist.indexOf(h), 1); saveHist(); drawHist(); };
     box.append(r);
   });
+  if (flt.length > list.length) { const mb = document.createElement('button'); mb.className = 'btn'; mb.textContent = 'Показать ещё'; mb.style.margin = '12px 0'; mb.onclick = () => { histMax += 120; drawHist(); }; box.append(mb); }
 }
 
 /* ---------- загрузки ---------- */
@@ -650,7 +677,7 @@ const mb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' МБ' : Math.max(1, M
 function drawDl() {
   const box = $('#dllist'); box.innerHTML = '';
   const busy = dls.filter(d => d.state === 'progressing').length;
-  $('#dl').classList.toggle('busy', busy > 0);
+  updDlBtn();
   if (!dls.length) { const p = document.createElement('p'); p.className = 'muted'; p.style.margin = '6px'; p.textContent = 'Загрузок пока нет.'; box.append(p); }
   dls.slice(0, 30).forEach(d => {
     const r = document.createElement('div'); r.className = 'dl'; r._d = d;
@@ -671,20 +698,38 @@ function drawDl() {
     box.append(r);
   });
 }
+let dlOk = false, dlDoneT = 0;
+function updDlBtn() {
+  const b = $('#dl');
+  if (!b._prg) {
+    b.insertAdjacentHTML('beforeend', '<svg class="dlring" viewBox="0 0 38 38" aria-hidden="true"><circle class="trk" cx="19" cy="19" r="16"/><circle class="prg" cx="19" cy="19" r="16"/></svg>');
+    b._prg = b.querySelector('.prg'); b._ic = 'download';
+  }
+  const act = dls.filter(d => d.state === 'progressing');
+  let rec = 0, tot = 0, known = true;
+  act.forEach(d => { rec += d.received || 0; if (d.total > 0) tot += d.total; else known = false; });
+  const know = act.length > 0 && known && tot > 0, pct = know ? Math.min(1, rec / tot) : 0, ok = dlOk && !act.length;
+  b.classList.toggle('act', act.length > 0); b.classList.toggle('ind', act.length > 0 && !know); b.classList.toggle('ok', ok);
+  b._prg.style.strokeDashoffset = String(100.53 * (1 - pct));   // кольцо заполняется по проценту загрузки
+  const want = ok ? 'check' : 'download';
+  if (b._ic !== want) { b._ic = want; b.firstElementChild.innerHTML = ico(want, 22); }
+  b.title = act.length ? 'Загрузка: ' + (know ? Math.round(pct * 100) + '%' : '…') : ok ? 'Загрузка завершена' : 'Загрузки (Ctrl+J)';
+}
 ipcRenderer.on('dl', (_, m) => {
   let d = dls.find(x => x.id === m.id);
-  if (m.type === 'start') { dls.unshift({ id: m.id, name: m.name, path: '', state: 'progressing', received: 0, total: m.total }); drawDl(); if (S.dlPopup) openPop('dlpop'); return; }
+  if (m.type === 'start') { dlOk = false; clearTimeout(dlDoneT); dls.unshift({ id: m.id, name: m.name, path: '', state: 'progressing', received: 0, total: m.total }); drawDl(); if (S.dlPopup) openPop('dlpop'); return; }
   if (!d) return;
   d.name = m.name || d.name;
   if (m.type === 'progress') { d.received = m.received; d.total = m.total; if (m.state === 'interrupted') d.state = 'interrupted'; }
   else {
     d.state = m.state; d.path = m.path; if (m.state === 'completed' && !d.total) d.total = d.received; saveDl();
     if (m.state === 'completed') {
+      dlOk = true; clearTimeout(dlDoneT); dlDoneT = setTimeout(() => { dlOk = false; updDlBtn(); }, 2000);   // галочка на 2 секунды
       if (S.dlNotify) safe(() => new Notification('Загрузка завершена', { body: d.name }));
       if (S.dlOpen) ipcRenderer.send('dl-open', d.path);
     }
   }
-  drawDl();
+  if (m.type === 'progress' && !$('#dlpop').classList.contains('on')) updDlBtn(); else drawDl();
 });
 
 /* ---------- вкладки ---------- */
@@ -718,7 +763,7 @@ function mountWv(t) {
   const wp = []; if (!S.js) wp.push('javascript=no'); if (S.noAutoplay) wp.push('autoplayPolicy=document-user-activation-required');
   if (wp.length) wv.setAttribute('webpreferences', wp.join(','));
   const ph = t.wv; if (ph && ph.parentNode) ph.replaceWith(wv); else $('#views').append(wv);
-  t.wv = wv; t.lazy = false; t.dom = false; t.dk = t.sk = null;
+  t.wv = wv; t.lazy = false; t.mounted = true; t.dom = false; t.dk = t.sk = null;
   wv.addEventListener('page-title-updated', e => { t.title = e.title; drawTabs(); });
   wv.addEventListener('page-favicon-updated', e => { t.icon = e.favicons[0]; drawTabs(); });
   const nav = e => { if (e.isMainFrame === false) return; t.url = e.url; addHist(t, e.url); if (t === active) sync(); };
@@ -739,13 +784,13 @@ function newTab(url, bg, lazy) {
   const ph = document.createElement('div'); ph.style.display = 'none'; t.wv = ph; $('#views').append(ph);
   const i = active && S.tabRight ? tabs.indexOf(active) + 1 : tabs.length;
   tabs.splice(i, 0, t);
-  if (lazy && url) { t.lazy = true; t.title = safe(() => new URL(url).host) || url; } else mountWv(t);
+  if (lazy && url) { t.lazy = true; t.title = safe(() => new URL(url).host) || url; } else if (url) mountWv(t);
   if (bg) drawTabs(); else { select(t); if (!url) $('#ntpq').focus(); }
   return t;
 }
 // усыпление неактивных вкладок освобождает память на слабых компьютерах
 function putToSleep(t) {
-  t.wv.remove(); t.lazy = true; t.dom = false;
+  t.wv.remove(); t.lazy = true; t.mounted = false; t.dom = false;
   const ph = document.createElement('div'); ph.style.display = 'none'; t.wv = ph; $('#views').append(ph);
   drawTabs();
 }
@@ -845,7 +890,7 @@ function drawLinks() {
 }
 function go(v) {
   const u = norm(v); if (!u) return;
-  active.url = u; active.wv.src = u;
+  active.url = u; if (active.mounted) active.wv.src = u; else mountWv(active);
   select(active); safe(() => active.wv.focus());
 }
 
@@ -854,7 +899,7 @@ function closeAll() {
   document.querySelectorAll('.side,.pop').forEach(e => e.classList.remove('on'));
   $('#scrim').classList.remove('on'); $('#pscrim').classList.remove('on');
 }
-function openSide(id) { if (id === 'set') ensureSet(); closeAll(); $('#' + id).classList.add('on'); $('#scrim').classList.add('on'); if (id === 'hist') { $('#hq').value = ''; drawHist(); } }
+function openSide(id) { if (id === 'set') ensureSet(); closeAll(); $('#' + id).classList.add('on'); $('#scrim').classList.add('on'); if (id === 'hist') { histMax = 120; $('#hq').value = ''; drawHist(); } }
 function openPop(id) { closeAll(); $('#' + id).classList.add('on'); $('#pscrim').classList.add('on'); }
 $('#scrim').onclick = $('#pscrim').onclick = closeAll;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
@@ -863,7 +908,7 @@ $('#dl').onclick = () => { drawDl(); openPop('dlpop'); };
 $('#mHist').onclick = () => openSide('hist');
 $('#mSet').onclick = () => openSide('set');
 $('#mInc').onclick = () => { closeAll(); ipcRenderer.send('incognito'); };
-$('#hq').oninput = drawHist;
+$('#hq').oninput = () => { histMax = 120; drawHist(); };
 $('#hclear').onclick = () => { hist = []; saveHist(); drawHist(); };
 $('#dlclear').onclick = () => { dls = dls.filter(d => d.state === 'progressing'); saveDl(); drawDl(); };
 
@@ -1314,6 +1359,42 @@ document.addEventListener('mousedown', () => { if (sbHot) sbDrag = sbHot; }, tru
 addEventListener('mouseup', () => { if (sbDrag) { sbDrag = null; sbRaf = requestAnimationFrame(sbProbe); } }, true);
 document.addEventListener('mouseleave', () => { if (sbHot && !sbDrag) { sbTo(sbHot, 0); sbHot = null; } });
 
+/* ---------- полосы прокрутки Material You: плавно светлеют и расширяются при наведении ---------- */
+function sbAttach(el, par) {
+  if (!el || !par || el._sb) return; el._sb = 1;
+  el.classList.add('nsb');
+  const bar = document.createElement('div'); bar.className = 'sbar';
+  const th = document.createElement('div'); th.className = 'sbth'; bar.append(th); par.append(bar);
+  let raf = 0;
+  const upd = () => {
+    raf = 0;
+    const ch = el.clientHeight, sh = el.scrollHeight;
+    if (!ch || sh <= ch + 1) { bar.style.display = 'none'; return; }
+    const pr = par.getBoundingClientRect(), r = el.getBoundingClientRect(), hh = Math.max(48, Math.round(ch * ch / sh));
+    bar.style.display = 'block';
+    bar.style.left = (r.right - pr.left - 20) + 'px'; bar.style.top = (r.top - pr.top) + 'px'; bar.style.height = ch + 'px';
+    th.style.height = hh + 'px'; th.style.transform = 'translateY(' + ((ch - hh) * el.scrollTop / (sh - ch)) + 'px)';
+  };
+  const sched = () => { if (!raf) raf = requestAnimationFrame(upd); };
+  el._sbUpd = sched;
+  el.addEventListener('scroll', sched, { passive: true });
+  new ResizeObserver(sched).observe(el);
+  new MutationObserver(sched).observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'hidden'] });
+  par.addEventListener('animationend', sched); par.addEventListener('transitionend', sched); addEventListener('resize', sched);
+  bar.addEventListener('wheel', e => { el.scrollTop += e.deltaY; }, { passive: true });
+  th.addEventListener('pointerdown', e => {
+    e.preventDefault(); th.setPointerCapture(e.pointerId); bar.classList.add('drag');
+    const y0 = e.clientY, s0 = el.scrollTop, k = (el.scrollHeight - el.clientHeight) / ((el.clientHeight - th.offsetHeight) || 1);
+    const mv = ev => { el.scrollTop = s0 + (ev.clientY - y0) * k; };
+    const up = () => { bar.classList.remove('drag'); th.removeEventListener('pointermove', mv); th.removeEventListener('pointerup', up); th.removeEventListener('pointercancel', up); };
+    th.addEventListener('pointermove', mv); th.addEventListener('pointerup', up); th.addEventListener('pointercancel', up);
+  });
+  bar.addEventListener('pointerdown', e => {
+    if (e.target !== bar) return;
+    el.scrollBy({ top: (e.clientY < th.getBoundingClientRect().top ? -1 : 1) * el.clientHeight * 0.9, behavior: 'smooth' });
+  });
+}
+
 /* ---------- настройки ---------- */
 const CATS = ['Внешний вид', 'Новая вкладка', 'Поиск', 'Запуск', 'Вкладки', 'Страницы', 'Приватность', 'Загрузки', 'История', 'Окно', 'Клавиши', 'Данные', 'О браузере', 'Расширения', 'Дата и время', 'Скорость'];
 const ORD = [0, 1, 2, 3, 4, 5, 15, 6, 7, 8, 14, 13, 9, 10, 11, 12];
@@ -1686,18 +1767,21 @@ function sendCfg() {
     clearOnExit: S.clearOnExit, onTop: S.onTop, startMax: S.startMax, noHw: S.noHw, lowEnd: S.lowEnd, bgc: bgHex() });
 }
 let ht;
+let uiq = 0;
+function lazyUi() { if (uiq) return; uiq = requestAnimationFrame(() => { uiq = 0; syncSet(); drawLinks(); }); }
 function apply() {
-  save(); theme(); applyView(); syncSet(); drawLinks();
+  save(); theme(); applyView(); lazyUi();
   clearTimeout(ht); ht = setTimeout(() => { sendCfg(); tabs.forEach(applyTab); drawTabs(); sync(); }, 120);
 }
 
-addEventListener('beforeunload', () => { flushHist(); flushSession(); if (S.clearHistExit && !INC) localStorage.history = '[]'; });
+addEventListener('beforeunload', () => { flushSave(); flushHist(); flushSession(); if (S.clearHistExit && !INC) localStorage.history = '[]'; });
 mq.onchange = theme;
 
 if (+S.histDays && !INC) { const lim = Date.now() - S.histDays * 864e5; hist = hist.filter(h => h.time > lim); saveHist(); }
-regFonts();
+if (cfonts.some(f => f.n === S.font || f.n === S.ntpFont)) regFonts(); else (window.requestIdleCallback || setTimeout)(regFonts);
 if (!INC) ipcRenderer.send('perm-init', sitePerms);
 document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = ico(e.dataset.i, +e.dataset.s || 22));
+sbAttach($('#smain'), $('#set')); sbAttach($('#scats'), $('#set')); sbAttach($('#hlist'), $('#hist')); sbAttach($('#dllist'), $('#dlpop'));
 theme(); applyView(); drawDl(); sendCfg();
 setTimeout(() => { if (INC) return; const t = S.engine === 'custom' ? S.custom : ENG[S.engine][1]; const o = safe(() => new URL(t).origin); if (o) ipcRenderer.send('preconnect', o); }, 1200);
 (function start() {

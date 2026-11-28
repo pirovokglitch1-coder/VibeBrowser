@@ -100,7 +100,11 @@ function hook(ses) {
     }
     const send = m => { if (!host.isDestroyed()) host.send('dl', { id, ...m }); };
     send({ type: 'start', name: item.getFilename(), total: item.getTotalBytes() });
-    item.on('updated', (_, state) => send({ type: 'progress', state, name: item.getFilename(), received: item.getReceivedBytes(), total: item.getTotalBytes() }));
+    let lastSend = 0;   // прогресс отправляем не чаще 4 раз в секунду
+    item.on('updated', (_, state) => {
+      const n = Date.now(); if (state === 'progressing' && n - lastSend < 250) return; lastSend = n;
+      send({ type: 'progress', state, name: item.getFilename(), received: item.getReceivedBytes(), total: item.getTotalBytes() });
+    });
     item.once('done', (_, state) => { items.delete(id); send({ type: 'done', state, name: item.getFilename(), path: item.getSavePath() }); });
   });
   applyNet(ses);
